@@ -355,6 +355,9 @@ def main():
                     help="emit key=value settings for the AHK layer (window actions, paste delay)")
     ap.add_argument("--has-key", action="store_true",
                     help="exit 0 if an API key is configured, 1 if not (no API call)")
+    ap.add_argument("--set", dest="set_kv", metavar="KEY=VALUE",
+                    help="safely update one top-level config.json value (the AHK "
+                         "settings window uses this instead of hand-editing JSON)")
     ap.add_argument("--selftest", action="store_true", help="verify config, key, and API")
     ap.add_argument("--debug", action="store_true", help="also log to stderr")
     try:
@@ -393,6 +396,38 @@ def main():
                 f"paste_settle_ms={int(cfg.get('paste_settle_ms', 300))}\n"
                 f"ui_language={cfg.get('ui_language', 'en')}\n"
             )
+            return EXIT_OK
+
+        if args.set_kv:
+            if "=" not in args.set_kv:
+                sys.stderr.write("RecWrite: --set expects KEY=VALUE\n")
+                return EXIT_ERROR
+            key, _, raw = args.set_kv.partition("=")
+            key, raw = key.strip(), raw.strip()
+            # only scalar knobs — never actions/prompts, which deserve an editor
+            allowed = {"ui_language", "model", "temperature", "timeout_seconds",
+                       "paste_settle_ms", "log_text_previews"}
+            if key not in allowed:
+                sys.stderr.write(f"RecWrite: --set refuses '{key}' (allowed: {', '.join(sorted(allowed))})\n")
+                return EXIT_ERROR
+            if raw.lower() in ("true", "false"):
+                val = raw.lower() == "true"
+            else:
+                try:
+                    val = int(raw)
+                except ValueError:
+                    try:
+                        val = float(raw)
+                    except ValueError:
+                        val = raw
+            cfg = load_config(log)
+            cfg[key] = val
+            tmp = CONFIG_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+            os.replace(tmp, CONFIG_PATH)
+            log.info(f"config set {key}={val!r}")
             return EXIT_OK
 
         if args.has_key:

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.0 — 2026-08-05
+
+Friendly first-run, borrowed with pride from WritingTools' onboarding flow.
+
+- **Onboarding wizard**: welcome page (what the tool does + the hotkeys) → key page with a "Get a free key" button, show/hide toggle, and **Test & Save** that validates the key with a real Gemini round-trip before declaring success → "you're all set" page with first steps.
+- **Settings window** (tray → Settings): interface language (עברית/English), start-with-Windows toggle, API key status + change, advanced config shortcut. Config edits go through the brain (`--set`), never hand-written JSON.
+- Autostart managed in-app via a Startup-folder shortcut.
+
 ## v1.0.0 — 2026-08-05
 
 First public release, rebranded from the internal "RecWrite".

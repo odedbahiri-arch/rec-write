@@ -9,11 +9,15 @@ keyboard layouts alike, and the UI itself speaks both languages.
 
 1. Download the latest release zip from the [Releases page](../../releases/latest) and unzip it anywhere (e.g. `C:\Tools\REC-WriteTool`).
 2. Run `REC-WriteTool.exe`. Botan (the peanut 🥜) appears in your tray.
-3. First run asks for a **Gemini API key** — free from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Paste it once; it's stored only on your computer, in a `.env` file next to the app.
+3. A short setup wizard opens: it explains the hotkeys, then walks you through
+   getting a **free Gemini API key** (button opens
+   [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — ~30
+   seconds, no credit card). The key is tested against Gemini before setup
+   completes, and stored only on your computer, in a `.env` next to the app.
 4. Select some text anywhere and press `Ctrl+Alt+J`. Done.
 
-To start it with Windows: put a shortcut to `REC-WriteTool.exe` in your Startup
-folder (`Win+R` → `shell:startup`).
+Tray → **Settings** for interface language (English/עברית), starting with
+Windows, and changing the key later.
 
 ## Hotkeys
 

@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.0.0"
+APP_VERSION := "1.1.0"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -103,10 +103,36 @@ SetLang(lang) {
         "upd_avail", "A new version is available", "upd_open", "Open the download page?",
         "upd_none", "You're up to date", "upd_err", "Couldn't check for updates",
         "key_title", "API key setup",
-        "key_explain", "REC — Write Tool uses Google's Gemini (free tier is plenty). Get a free API key at the link below, paste it here, and you're set. The key is stored only on this computer.",
+        "key_explain", "REC — Write Tool runs on Google's Gemini — the free tier is plenty. Click the button to get a free key (takes ~30 seconds, no credit card), paste it below, and hit Test && Save. The key is stored only on this computer.",
         "key_save", "Save key",
-        "key_saved", "Key saved — you're ready to go",
-        "key_failed", "That key didn't work — check it and try again",
+        "key_saved", "Key saved and verified — you're ready to go",
+        "key_failed", "That key didn't pass a live test — check for missing characters and try again",
+        "key_get", "Get a free key ↗",
+        "key_show", "Show key",
+        "key_test_save", "Test && Save",
+        "key_testing", "Testing against Gemini…",
+        "ob_title", "Welcome",
+        "ob_what1", "• Select text in ANY app, press a hotkey — and it's proofread, rewritten or translated in place.",
+        "ob_what2", "• The hotkeys are bound to physical keys, so they work the same under Hebrew and English layouts.",
+        "ob_what3", "• Summary, Key Points and Table open a window you can keep chatting with — refine the answer instead of redoing it.",
+        "ob_hotkeys", "The hotkeys:",
+        "ob_menu", "full menu",
+        "ob_next", "Next",
+        "ob_key_head", "Connect your free AI key",
+        "ob_done_head", "You're all set!",
+        "ob_done_try", "Try it now: select some text anywhere and press Ctrl+Alt+J to proofread — or Ctrl+Alt+Space for the full menu. Botan in the tray means it's running.",
+        "ob_finish", "Start writing",
+        "set_title", "Settings",
+        "set_lang", "Interface language:",
+        "set_autostart", "Start with Windows",
+        "set_key", "API key:",
+        "set_key_ok", "configured",
+        "set_key_missing", "missing",
+        "set_key_change", "Change key…",
+        "set_open_config", "Advanced (config.json)…",
+        "set_save", "Save",
+        "set_saved", "Settings saved",
+        "tray_settings", "Settings…",
         "tip_tooltip", "REC — Write Tool (active)",
         "st_pass", "Self-test PASSED — Gemini reachable",
         "st_fail", "Self-test FAILED — see recwrite.log",
@@ -155,10 +181,36 @@ SetLang(lang) {
         "upd_avail", "יש גרסה חדשה", "upd_open", "לפתוח את דף ההורדה?",
         "upd_none", "הגרסה הכי עדכנית", "upd_err", "בדיקת העדכונים לא הצליחה",
         "key_title", "הגדרת מפתח API",
-        "key_explain", "REC — Write Tool עובד עם Gemini של גוגל (החינמי מספיק בגדול). מוציאים מפתח חינם בקישור למטה, מדביקים כאן — וזהו. המפתח נשמר רק במחשב הזה.",
+        "key_explain", "REC — Write Tool עובד עם Gemini של גוגל — והחינמי מספיק בגדול. לוחצים על הכפתור לקבלת מפתח חינם (לוקח חצי דקה, בלי כרטיס אשראי), מדביקים למטה ולוחצים על בדיקה ושמירה. המפתח נשמר רק במחשב הזה.",
         "key_save", "שמירת המפתח",
-        "key_saved", "המפתח נשמר — אפשר להתחיל",
-        "key_failed", "המפתח לא עבד — כדאי לבדוק ולנסות שוב",
+        "key_saved", "המפתח נשמר ונבדק — אפשר להתחיל",
+        "key_failed", "המפתח לא עבר בדיקה מול Gemini — כדאי לוודא שהודבק במלואו ולנסות שוב",
+        "key_get", "קבלת מפתח חינם ↗",
+        "key_show", "הצגת המפתח",
+        "key_test_save", "בדיקה ושמירה",
+        "key_testing", "בודק מול Gemini…",
+        "ob_title", "ברוכים הבאים",
+        "ob_what1", "• מסמנים טקסט בכל תוכנה, לוחצים קיצור — והטקסט עובר הגהה, ניסוח מחדש או סיכום, במקום.",
+        "ob_what2", "• הקיצורים קשורים למקשים הפיזיים, אז הם עובדים אותו דבר בעברית ובאנגלית.",
+        "ob_what3", "• סיכום, נקודות עיקריות וטבלה נפתחים בחלון שאפשר להמשיך לשוחח איתו — מלטשים את התשובה במקום להתחיל מהתחלה.",
+        "ob_hotkeys", "הקיצורים:",
+        "ob_menu", "תפריט מלא",
+        "ob_next", "המשך",
+        "ob_key_head", "חיבור מפתח AI חינמי",
+        "ob_done_head", "הכול מוכן!",
+        "ob_done_try", "שווה לנסות עכשיו: מסמנים טקסט בכל מקום ולוחצים Ctrl+Alt+J להגהה — או Ctrl+Alt+Space לתפריט המלא. בוטן במגש המערכת = הכלי רץ.",
+        "ob_finish", "מתחילים לכתוב",
+        "set_title", "הגדרות",
+        "set_lang", "שפת הממשק:",
+        "set_autostart", "הפעלה אוטומטית עם Windows",
+        "set_key", "מפתח ה-API:",
+        "set_key_ok", "מוגדר",
+        "set_key_missing", "חסר",
+        "set_key_change", "החלפת מפתח…",
+        "set_open_config", "מתקדם (config.json)…",
+        "set_save", "שמירה",
+        "set_saved", "ההגדרות נשמרו",
+        "tray_settings", "הגדרות…",
         "tip_tooltip", "REC — Write Tool — כתיבה עם AI (פעיל)",
         "st_pass", "הבדיקה עברה — יש חיבור ל-Gemini",
         "st_fail", "הבדיקה נכשלה — הפרטים ביומן",
@@ -584,6 +636,7 @@ BuildTray() {
     A_TrayMenu.Add(L["tray_direct"], (*) => "")
     A_TrayMenu.Disable(L["tray_direct"])
     A_TrayMenu.Add()
+    A_TrayMenu.Add(L["tray_settings"], (*) => ShowSettings())
     A_TrayMenu.Add(L["tray_log"], (*) => Run(logFile))
     A_TrayMenu.Add(L["tray_config"], (*) => Run('notepad.exe "' scriptDir '\config.json"'))
     A_TrayMenu.Add(L["tray_hotkeys"], (*) => Run('notepad.exe "' A_ScriptFullPath '"'))
@@ -651,9 +704,11 @@ TrayTip(L["start_title"], L["start_tip"], 1)
 SetTimer(() => TrayTip(), -3000)
 
 ; ============================================================================
-;  First-run setup: no API key anywhere → ask for one and write it to a .env
-;  beside the app. The key never passes through the clipboard/log and the
-;  input field is masked.
+;  First-run onboarding + settings (structure borrowed from WritingTools'
+;  OnboardingWindow/SettingsWindow, rebuilt as branded AHK GUIs).
+;  Page 1: what the tool does + the hotkeys.  Page 2: connect a free Gemini
+;  key — the key is written to .env beside the app and validated with a REAL
+;  API round-trip before we call it done.  Page 3: "you're set" + first steps.
 ; ============================================================================
 CheckApiKey() {
     global scriptDir
@@ -661,53 +716,149 @@ CheckApiKey() {
     try code := RunWait(BrainCmd() " --has-key", scriptDir, "Hide")
     if (code = 0)
         return
-    ShowKeyDialog()
+    ShowOnboarding()
 }
 
-ShowKeyDialog() {
-    global scriptDir, uiLang, L
-    kw := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool — " L["key_title"])
-    kw.BackColor := "FAF7EF"
-    kw.SetFont("s14 cEF4444", "Segoe UI")
-    kw.Add("Text", "x12 y10", "●")
-    kw.SetFont("s11 c1A1B1D bold", "Segoe UI")
-    kw.Add("Text", "x+6 yp+2", "REC — Write Tool")
-    kw.SetFont("s10 c1A1B1D norm", "Segoe UI")
-    kw.Add("Text", "xm y+12 w420", L["key_explain"])
-    kw.SetFont("s10 c4F5D00 underline", "Segoe UI")
-    lnk := kw.Add("Text", "xm y+6", "aistudio.google.com/apikey")
-    lnk.OnEvent("Click", (*) => Run("https://aistudio.google.com/apikey"))
-    kw.SetFont("s10 c1A1B1D norm", "Segoe UI")
-    ed := kw.Add("Edit", "xm y+12 w420 Password BackgroundFFFFFF")
-    sv := kw.Add("Button", "xm y+10 w120 Default", L["key_save"])
-    cl := kw.Add("Button", "x+8 w100", L["btn_close"])
-    sv.OnEvent("Click", SaveKey)
-    cl.OnEvent("Click", (*) => kw.Destroy())
-    kw.OnEvent("Close", (*) => kw.Destroy())
-    kw.OnEvent("Escape", (*) => kw.Destroy())
-    kw.Show("AutoSize")
-    ed.Focus()
+; One reusable branded window header: red record dot + lockup.
+BrandHeader(g, sub := "") {
+    g.BackColor := "FAF7EF"
+    g.SetFont("s16 cEF4444", "Segoe UI")
+    g.Add("Text", "x16 y14", "●")
+    g.SetFont("s13 c1A1B1D bold", "Segoe UI")
+    g.Add("Text", "x+8 yp+2", "REC — Write Tool" (sub != "" ? "   ·   " sub : ""))
+    g.SetFont("s10 c1A1B1D norm", "Segoe UI")
+}
 
-    SaveKey(*) {
+ShowOnboarding(page := 1) {
+    global scriptDir, uiLang, L
+    static g := ""
+    if (g != "") {
+        try g.Destroy()
+        g := ""
+    }
+    g := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool")
+    g.OnEvent("Close", (*) => (g.Destroy(), g := ""))
+    g.OnEvent("Escape", (*) => (g.Destroy(), g := ""))
+
+    if (page = 1) {
+        BrandHeader(g, L["ob_title"])
+        g.Add("Text", "xm y+14 w460", L["ob_what1"])
+        g.Add("Text", "xm y+8 w460", L["ob_what2"])
+        g.Add("Text", "xm y+8 w460", L["ob_what3"])
+        g.SetFont("s10 c1A1B1D bold", "Segoe UI")
+        g.Add("Text", "xm y+14", L["ob_hotkeys"])
+        g.SetFont("s10 c57534A norm", "Consolas")
+        g.Add("Text", "xm y+6", "Ctrl+Alt+Space   " L["act_custom"] " + " L["ob_menu"]
+            "`nCtrl+Alt+J  " L["act_proofread"] "      Ctrl+Alt+R  " L["act_rewrite"]
+            "`nCtrl+Alt+S  " L["act_summary"] "      Ctrl+Alt+K  " L["act_keypoints"])
+        g.SetFont("s10 c1A1B1D norm", "Segoe UI")
+        nx := g.Add("Button", "xm y+18 w140 Default", L["ob_next"])
+        nx.OnEvent("Click", (*) => ShowOnboarding(2))
+    } else if (page = 2) {
+        BrandHeader(g, L["ob_key_head"])
+        g.Add("Text", "xm y+14 w460", L["key_explain"])
+        gk := g.Add("Button", "xm y+12 w180", L["key_get"])
+        gk.OnEvent("Click", (*) => Run("https://aistudio.google.com/apikey"))
+        ed := g.Add("Edit", "xm y+14 w460 Password BackgroundFFFFFF")
+        sh := g.Add("Checkbox", "xm y+6", L["key_show"])
+        sh.OnEvent("Click", (*) => (ed.Opt(sh.Value ? "-Password" : "+Password")))
+        g.SetFont("s9 cB91C1C norm", "Segoe UI")
+        err := g.Add("Text", "xm y+8 w460", " ")
+        g.SetFont("s10 c1A1B1D norm", "Segoe UI")
+        ts := g.Add("Button", "xm y+8 w180 Default", L["key_test_save"])
+        ts.OnEvent("Click", TestAndSave)
+    } else {
+        BrandHeader(g, L["ob_done_head"])
+        g.SetFont("s11 c4F5D00 bold", "Segoe UI")
+        g.Add("Text", "xm y+14", "✓  " L["key_saved"])
+        g.SetFont("s10 c1A1B1D norm", "Segoe UI")
+        g.Add("Text", "xm y+10 w460", L["ob_done_try"])
+        fn := g.Add("Button", "xm y+16 w160 Default", L["ob_finish"])
+        fn.OnEvent("Click", (*) => (g.Destroy(), g := ""))
+    }
+    g.Show("AutoSize")
+
+    TestAndSave(*) {
         k := Trim(ed.Value)
         if (k = "")
             return
         f := FileOpen(scriptDir "\.env", "w", "UTF-8-RAW")
         f.Write("GOOGLE_API_KEY=" k "`n")
         f.Close()
+        ts.Enabled := false, ts.Text := L["key_testing"], err.Text := " "
         code := 1
-        try code := RunWait(BrainCmd() " --has-key", scriptDir, "Hide")
-        if (code = 0) {
-            kw.Destroy()
-            Notify(L["key_saved"])
-        } else {
-            Notify(L["key_failed"])
+        try code := RunWait(BrainCmd() " --selftest", scriptDir, "Hide")   ; real round-trip
+        ts.Enabled := true, ts.Text := L["key_test_save"]
+        if (code = 0)
+            ShowOnboarding(3)
+        else
+            err.Text := L["key_failed"]
+    }
+}
+
+; ---- settings window (tray → Settings) --------------------------------------
+ShowSettings() {
+    global scriptDir, uiLang, L
+    s := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool — " L["set_title"])
+    BrandHeader(s, L["set_title"])
+
+    s.Add("Text", "xm y+16", L["set_lang"])
+    rHe := s.Add("Radio", "xm y+6" (uiLang = "he" ? " Checked" : ""), "עברית")
+    rEn := s.Add("Radio", "x+16" (uiLang != "he" ? " Checked" : ""), "English")
+
+    au := s.Add("Checkbox", "xm y+14" (IsAutostart() ? " Checked" : ""), L["set_autostart"])
+
+    keyOk := false
+    try keyOk := (RunWait(BrainCmd() " --has-key", scriptDir, "Hide") = 0)
+    s.Add("Text", "xm y+14", L["set_key"] " " (keyOk ? "✓ " L["set_key_ok"] : "✗ " L["set_key_missing"]))
+    kb := s.Add("Button", "x+12 w150", L["set_key_change"])
+    kb.OnEvent("Click", (*) => (s.Destroy(), ShowOnboarding(2)))
+
+    oc := s.Add("Button", "xm y+16 w220", L["set_open_config"])
+    oc.OnEvent("Click", (*) => Run('notepad.exe "' scriptDir '\config.json"'))
+
+    sv := s.Add("Button", "xm y+18 w140 Default", L["set_save"])
+    cl := s.Add("Button", "x+8 w100", L["btn_close"])
+    sv.OnEvent("Click", SaveFn)
+    cl.OnEvent("Click", (*) => s.Destroy())
+    s.OnEvent("Close", (*) => s.Destroy())
+    s.OnEvent("Escape", (*) => s.Destroy())
+    s.Show("AutoSize")
+
+    SaveFn(*) {
+        SetAutostart(au.Value)
+        newLang := rHe.Value ? "he" : "en"
+        s.Destroy()
+        if (newLang != uiLang) {
+            ; the brain rewrites config.json safely; a reload applies the language
+            try RunWait(BrainCmd() ' --set ui_language=' newLang, scriptDir, "Hide")
+            Reload()
         }
+        Notify(L["set_saved"])
+    }
+}
+
+; Startup-folder shortcut (WritingTools' AutostartManager, the AHK way).
+; Also honors the older "RecWrite.lnk" name from pre-rebrand installs.
+IsAutostart() {
+    return FileExist(A_Startup "\REC-WriteTool.lnk") || FileExist(A_Startup "\RecWrite.lnk")
+}
+SetAutostart(on) {
+    if on {
+        if !FileExist(A_Startup "\REC-WriteTool.lnk") && !FileExist(A_Startup "\RecWrite.lnk")
+            try FileCreateShortcut(A_ScriptFullPath, A_Startup "\REC-WriteTool.lnk", A_ScriptDir)
+    } else {
+        try FileDelete(A_Startup "\REC-WriteTool.lnk")
+        try FileDelete(A_Startup "\RecWrite.lnk")
     }
 }
 
 ; Dev/QA aid: `recwrite.ahk --preview-window` opens a demo result window at
 ; startup so the GUI can be eyeballed (and screenshotted) without a hotkey.
+if (A_Args.Length && A_Args[1] = "--preview-onboarding")
+    ShowOnboarding(1)
+if (A_Args.Length && A_Args[1] = "--preview-settings")
+    ShowSettings()
 if (A_Args.Length && A_Args[1] = "--preview-window") {
     ShowResultWindow("summary", "טקסט מקור לדוגמה",
         "**סיכום לדוגמה**`n`n- הנקודה הראשונה של הסיכום`n- נקודה שנייה, קצת יותר ארוכה, כדי לראות גלישת שורות`n- נקודה שלישית`n`nכך נראה חלון תוצאה של REC — Write Tool.")
