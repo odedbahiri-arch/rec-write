@@ -1,0 +1,13 @@
+# local-only: personal settings + secrets + logs
+config.json
+.env
+recwrite.log*
+__pycache__/
+*.bak
+
+# build output
+dist/
+build/
+*.spec
+REC-WriteTool.exe
+recwrite-brain.exe

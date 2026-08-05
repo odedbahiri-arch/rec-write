@@ -1,0 +1,71 @@
+# Release pipeline: push a tag like v1.0.0 and this builds the full
+# self-contained zip and publishes it as a GitHub Release.
+#
+#   git tag v1.0.1 && git push origin v1.0.1
+#
+# The tag MUST match APP_VERSION in recwrite.ahk (guarded below) so the
+# in-app update check never disagrees with the release feed.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — tag matches APP_VERSION
+        run: |
+          $tag = $env:GITHUB_REF_NAME.TrimStart('v')
+          $ver = (Select-String -Path recwrite.ahk -Pattern 'APP_VERSION := "([^"]+)"').Matches[0].Groups[1].Value
+          if ($tag -ne $ver) { throw "Tag v$tag does not match APP_VERSION $ver in recwrite.ahk" }
+          "VERSION=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the brain (PyInstaller)
+        run: |
+          pip install requests pyinstaller
+          pyinstaller --onefile --name recwrite-brain recwrite.py
+          if (-not (Test-Path dist\recwrite-brain.exe)) { throw "PyInstaller produced no exe" }
+
+      - name: Smoke-test the brain exe
+        run: |
+          Copy-Item config.example.json dist\config.json
+          $p = Start-Process -FilePath dist\recwrite-brain.exe -ArgumentList "--ahk-settings" -Wait -PassThru -NoNewWindow
+          if ($p.ExitCode -ne 0) { throw "brain --ahk-settings exited $($p.ExitCode)" }
+
+      - name: Compile the trigger (Ahk2Exe)
+        run: |
+          curl.exe -sSL -o ahk.zip https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.26/AutoHotkey_2.0.26.zip
+          curl.exe -sSL -o ahk2exe.zip https://github.com/AutoHotkey/Ahk2Exe/releases/download/Ahk2Exe1.1.37.02a2/Ahk2Exe1.1.37.02a2.zip
+          Expand-Archive ahk.zip -DestinationPath ahk
+          Expand-Archive ahk2exe.zip -DestinationPath ahk2exe
+          $c = Start-Process -FilePath ahk2exe\Ahk2Exe.exe -Wait -PassThru -ArgumentList `
+            '/silent', 'verbose', '/in', 'recwrite.ahk', '/out', 'REC-WriteTool.exe', `
+            '/icon', 'botan.ico', '/base', 'ahk\AutoHotkey64.exe'
+          if (-not (Test-Path REC-WriteTool.exe)) { throw "Ahk2Exe failed (exit $($c.ExitCode))" }
+
+      - name: Assemble zip
+        run: |
+          New-Item -ItemType Directory pkg\REC-WriteTool | Out-Null
+          Copy-Item REC-WriteTool.exe        pkg\REC-WriteTool\
+          Copy-Item dist\recwrite-brain.exe  pkg\REC-WriteTool\
+          Copy-Item config.example.json      pkg\REC-WriteTool\config.json
+          Copy-Item botan.ico, README.md, LICENSE, CHANGELOG.md pkg\REC-WriteTool\
+          Compress-Archive -Path pkg\REC-WriteTool -DestinationPath "REC-WriteTool-v$env:VERSION.zip"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME "REC-WriteTool-v$env:VERSION.zip" `
+            --title "REC — Write Tool $env:GITHUB_REF_NAME" --generate-notes
