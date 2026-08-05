@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.0 — 2026-08-05
+
+The popup grows up, settings go instant.
+
+- **New popup**: `Ctrl+Alt+Space` now opens a branded button window at the cursor (the WritingTools shape) — action buttons in a grid, window-actions marked ⧉, and a free-text "describe any change" field with Enter-to-send (replaces the separate Custom dialog). Dismisses on Esc or clicking elsewhere; multi-monitor aware. Verified end-to-end with a real synthetic-hotkey drive.
+- **Settings apply instantly** — no Save button. Click עברית/English and the whole UI switches on the spot (no restart); autostart applies on click; the menu hotkey applies as soon as you press the combo in the picker, with the current binding always shown in bold (and a reset-to-default button).
+- **Brand lockup always reads left-to-right** — "● REC — Write Tool · הגדרות" — in every window, including mirrored Hebrew ones (dot first, title after).
+- Diagnostics: brain-launch failures and popup exceptions now log their cause instead of only flashing a tooltip.
+
 ## v1.2.0 — 2026-08-05
 
 UX hardening release, driven by a WritingTools issue-tracker autopsy, a free-API-tier research pass, and a full UX audit.

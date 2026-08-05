@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.2.0"
+APP_VERSION := "1.3.0"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -47,6 +47,8 @@ tmpInstr  := A_Temp "\recwrite_instr.txt"
 tmpChat   := A_Temp "\recwrite_chat.txt"
 settleMs  := 300
 busy      := false
+popupGui  := ""
+OnMessage(0x0006, PopupDeactivate)   ; WM_ACTIVATE — dismiss the popup on focus loss
 ; Which actions open a result window instead of pasting is owned by config.json
 ; ("open_in_window"), so adding an action never means editing this script. The
 ; literal below is only the fallback if the brain can't be reached at startup.
@@ -86,6 +88,8 @@ SetLang(lang) {
         "truncated", "heads up: the answer was cut short",
         "custom_title", "Custom instruction",
         "custom_prompt", "Describe the change you want (any language):",
+        "p_cue", "Describe any change… (then Enter)",
+        "p_chars", "chars selected",
         "followup_label", "Ask a follow-up (Enter to send):",
         "btn_ask", "Ask", "btn_copy_answer", "Copy answer",
         "btn_copy_all", "Copy all (Markdown)", "btn_close", "Close",
@@ -137,9 +141,10 @@ SetLang(lang) {
         "set_key_ok", "configured",
         "set_key_missing", "missing",
         "set_key_change", "Change key…",
-        "set_hotkey", "Menu hotkey — current:",
-        "set_hotkey_note", "Click the box and press the combo you want. Recommended: Ctrl+Alt+Space (the default). The direct hotkeys (Ctrl+Alt+letter) are fixed.",
+        "set_hotkey", "Menu hotkey:",
+        "set_hotkey_note", "To change it: click the box and press the combo you want — it applies immediately. Recommended: the default, Ctrl+Alt+Space. The direct hotkeys (Ctrl+Alt+letter) are fixed.",
         "set_hotkey_reset", "Reset to default",
+        "hk_applied", "Menu hotkey is now", "hk_rejected", "That combo can't be used — keeping the previous one",
         "set_save", "Save",
         "set_saved", "Settings saved",
         "tray_settings", "Settings…",
@@ -174,6 +179,8 @@ SetLang(lang) {
         "truncated", "שימו לב: התשובה נקטעה באמצע",
         "custom_title", "הוראה חופשית",
         "custom_prompt", "מה לעשות בטקסט? (אפשר בכל שפה)",
+        "p_cue", "מה לעשות בטקסט? כותבים כאן ולוחצים Enter",
+        "p_chars", "תווים מסומנים",
         "followup_label", "שאלת המשך (Enter לשליחה):",
         "btn_ask", "שליחה", "btn_copy_answer", "העתקת התשובה",
         "btn_copy_all", "העתקת הכול (Markdown)", "btn_close", "סגירה",
@@ -225,9 +232,10 @@ SetLang(lang) {
         "set_key_ok", "מוגדר",
         "set_key_missing", "חסר",
         "set_key_change", "החלפת מפתח…",
-        "set_hotkey", "קיצור התפריט — כרגע:",
-        "set_hotkey_note", "לוחצים על התיבה ומקישים את הצירוף הרצוי. מומלץ: Ctrl+Alt+Space (ברירת המחדל). הקיצורים הישירים (Ctrl+Alt+אות) קבועים.",
+        "set_hotkey", "קיצור התפריט:",
+        "set_hotkey_note", "לשינוי: לוחצים על התיבה ומקישים את הצירוף הרצוי — הוא נכנס לתוקף מיד. מומלץ להישאר עם ברירת המחדל, Ctrl+Alt+Space. הקיצורים הישירים (Ctrl+Alt+אות) קבועים.",
         "set_hotkey_reset", "חזרה לברירת המחדל",
+        "hk_applied", "קיצור התפריט מעכשיו:", "hk_rejected", "הצירוף הזה לא זמין — נשארים עם הקודם",
         "set_save", "שמירה",
         "set_saved", "ההגדרות נשמרו",
         "tray_settings", "הגדרות…",
@@ -334,7 +342,7 @@ RunAction(action) {
 ;  the source window before pasting.
 ; ============================================================================
 ShowPopup() {
-    global busy, popupText, popupSrc, popupSaved, popupPicked
+    global busy, popupText, popupSrc, popupSaved, popupPicked, popupGui, uiLang, L, windowActions
     if busy
         return
     busy := true                          ; direct hotkeys must not fight the popup for the clipboard
@@ -352,26 +360,73 @@ ShowPopup() {
     Log("popup opened — captured " StrLen(popupText) " chars")
     popupPicked := false
 
-    ; A native menu: renders cleanly, auto-positions on-screen, fires reliably,
-    ; and restores focus to the source window when an item is picked.
-    m := Menu()
-    m.Add(L["m1"], MenuPick)
-    m.Add(L["m2"], MenuPick)
-    m.Add(L["m3"], MenuPick)
-    m.Add(L["m4"], MenuPick)
-    m.Add(L["m5"], MenuPick)
-    m.Add()
-    m.Add(L["m6"], MenuPick)
-    m.Add(L["m7"], MenuPick)
-    m.Add(L["m8"], MenuPick)
-    m.Add()
-    m.Add(L["mC"], MenuPick)
-    m.Show()                              ; at the mouse cursor; blocks until pick/dismiss
-    ; Cleanup is DEFERRED: a pick launches MenuPick as an interrupting thread,
-    ; but that ordering isn't guaranteed on all machines — clearing state right
-    ; here could race MenuPick and hand it empty text. The timer runs after the
-    ; dust settles; MenuPick sets popupPicked as its very first act.
-    SetTimer(PopupCleanup, -250)
+    ; A small branded button window at the cursor (the WritingTools shape):
+    ; a free-text "describe any change" field up top, the actions as buttons.
+    p := Gui("-Caption +AlwaysOnTop +ToolWindow +Border" (uiLang = "he" ? " +E0x400000" : ""))
+    popupGui := p
+    p.BackColor := "FAF7EF"
+    p.SetFont("s12 cEF4444", "Segoe UI")
+    phdr := [p.Add("Text", "x12 y10", "●")]
+    p.SetFont("s9 c1A1B1D bold", "Segoe UI")
+    phdr.Push(p.Add("Text", "x+6 yp+4", "REC — Write Tool"))
+    p.SetFont("s9 c6F695D norm", "Segoe UI")
+    phdr.Push(p.Add("Text", "x+10 yp", StrLen(popupText) " " L["p_chars"]))
+    p.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    ci := p.Add("Edit", "xm y+10 w306 BackgroundFFFFFF")
+    SetCue(ci, L["p_cue"])
+    go := p.Add("Button", "x+6 w66 Default", L["btn_ask"])
+    keys := ["proofread", "rewrite", "friendly", "professional", "concise", "summary", "keypoints", "table"]
+    for i, k in keys {
+        opt := (Mod(i, 2) = 1 ? "xm y+8" : "x+8 yp") " w185 h32"
+        p.Add("Button", opt, ActLabel(k) (InStr(windowActions, "," k ",") ? "  ⧉" : ""))
+            .OnEvent("Click", RunPick.Bind(k))
+    }
+    go.OnEvent("Click", SendCustom)
+    p.OnEvent("Escape", (*) => ClosePopup())
+    p.OnEvent("Close", (*) => ClosePopup())
+
+    ; show at the cursor, clamped to the work area of the monitor it's on
+    CoordMode("Mouse", "Screen")
+    MouseGetPos(&mx, &my)
+    p.Show("AutoSize Hide")
+    if (uiLang = "he")
+        PlaceHeaderLTR(p, phdr)
+    p.GetPos(, , &pw, &ph)
+    WorkAreaAt(mx, my, &wl, &wt, &wr, &wb)
+    x := Max(wl + 8, Min(mx, wr - pw - 8)), y := Max(wt + 8, Min(my, wb - ph - 8))
+    p.Show("x" x " y" y)
+    ci.Focus()
+
+    RunPick(action, *) {
+        popupPicked := true
+        p.Destroy(), popupGui := ""
+        DoPopupAction(action, "")
+    }
+    SendCustom(*) {
+        q := Trim(ci.Value)
+        if (q = "")
+            return
+        popupPicked := true
+        p.Destroy(), popupGui := ""
+        DoPopupAction("custom", q)
+    }
+    ClosePopup() {
+        try p.Destroy()
+        popupGui := ""
+        if !popupPicked
+            PopupCleanup()
+    }
+}
+
+; Clicking anywhere else must dismiss the popup (and give the clipboard back).
+PopupDeactivate(wParam, lParam, msg, hwnd) {
+    global popupGui, popupPicked
+    if (popupGui != "" && wParam = 0 && hwnd = popupGui.Hwnd) {
+        try popupGui.Destroy()
+        popupGui := ""
+        if !popupPicked
+            PopupCleanup()
+    }
 }
 
 PopupCleanup() {
@@ -386,29 +441,12 @@ PopupCleanup() {
     busy := false
 }
 
-; Map a clicked menu label back to an action name.
-MenuPick(itemName, itemPos, myMenu) {
-    global popupText, popupSrc, popupSaved, popupPicked, busy, windowActions
-    popupPicked := true                     ; tell PopupCleanup this thread owns the state now
-    static map := Map(
-        "1", "proofread", "2", "rewrite", "3", "friendly", "4", "professional",
-        "5", "concise", "6", "summary", "7", "keypoints", "8", "table", "C", "custom")
-    clean := StrReplace(itemName, "&", "")  ; drop the accelerator marker if present
-    key := SubStr(clean, 1, 1)              ; the digit/letter (1-8 or C)
-    action := map.Has(key) ? map[key] : ""
-    if (action = "") {
-        popupPicked := false                ; unknown item — let the cleanup timer restore things
-        return
-    }
+; Run the picked action against the captured selection, restoring focus to the
+; source window first (unless the result opens in a window anyway).
+DoPopupAction(action, instr) {
+    global popupText, popupSrc, popupSaved, busy, windowActions
     Log("popup pick: " action)
-    instr := ""
     try {
-        if (action = "custom") {
-            ib := InputBox(L["custom_prompt"], L["app"] " — " L["custom_title"], "w380 h130")
-            if (ib.Result != "OK" || Trim(ib.Value) = "")
-                return
-            instr := ib.Value
-        }
         if (popupSrc && !InStr(windowActions, "," action ",")) {
             WinActivate("ahk_id " popupSrc)
             WinWaitActive("ahk_id " popupSrc, , 1)
@@ -416,12 +454,28 @@ MenuPick(itemName, itemPos, myMenu) {
         keep := Handle(action, popupText, instr, popupSaved, popupSrc)
     } catch as e {
         Notify(ActLabel(action) " — " e.Message)
+        Log("popup " action " -> EXCEPTION: " e.Message)
     } finally {
         if !IsSet(keep) || !keep
             A_Clipboard := popupSaved
         popupSaved := "", popupText := ""
         busy := false
     }
+}
+
+; Gray hint text inside an empty Edit control (EM_SETCUEBANNER).
+SetCue(ctrl, text) {
+    DllCall("SendMessage", "ptr", ctrl.Hwnd, "uint", 0x1501, "ptr", 1, "wstr", text)
+}
+
+; Work area of the monitor containing the point (multi-monitor safe).
+WorkAreaAt(x, y, &l, &t, &r, &b) {
+    loop MonitorGetCount() {
+        MonitorGetWorkArea(A_Index, &l, &t, &r, &b)
+        if (x >= l && x < r && y >= t && y < b)
+            return
+    }
+    MonitorGetWorkArea(MonitorGetPrimary(), &l, &t, &r, &b)
 }
 
 ; ============================================================================
@@ -506,11 +560,14 @@ CallBrain(action, text, instruction) {
         fi.Close()
         args .= ' --instrfile "' tmpInstr '"'
     }
-    out := ""
+    out := "", code := -1
     try {
         code := RunWait(BrainCmd() " " args, scriptDir, "Hide")
         if ((code = 0 || code = 5) && FileExist(tmpOut))
             out := FileRead(tmpOut, "UTF-8")
+    } catch as e {
+        Log("CallBrain launch failed: " e.Message " (cmd: " BrainCmd() ")")
+        code := 1
     } finally {
         ; the temp files hold the user's selected text — never leave them behind
         try FileDelete(tmpIn)
@@ -602,12 +659,7 @@ ShowResultWindow(action, srcText, resultText) {
     mirrored := (uiLang = "he")
     rw := Gui("+Resize" (mirrored ? " +E0x400000" : ""), L["app"] " — " ActLabel(action))
     ; RecStudio brand: warm paper ground, ink text, the red record dot up top.
-    rw.BackColor := "FAF7EF"
-    rw.SetFont("s14 cEF4444", "Segoe UI")
-    rw.Add("Text", "x12 y10", "●")
-    rw.SetFont("s11 c1A1B1D bold", "Segoe UI")
-    rw.Add("Text", "x+6 yp+2", "REC — Write Tool   ·   " ActLabel(action))
-    rw.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    hdr := BrandHeader(rw, ActLabel(action))
     edOpts := "xm y+10 w700 r20 ReadOnly VScroll BackgroundFFFFFF"
     if (!mirrored && HasHebrew(resultText))
         edOpts .= " +E0x2000 Right"     ; WS_EX_RTLREADING for Hebrew answers
@@ -626,7 +678,13 @@ ShowResultWindow(action, srcText, resultText) {
     bx.OnEvent("Click", (*) => rw.Destroy())
     rw.OnEvent("Escape", (*) => rw.Destroy())
     rw.OnEvent("Close", (*) => rw.Destroy())   ; title-bar X must destroy, not hide (leak otherwise)
-    rw.Show("AutoSize")
+    rw.Show("AutoSize Hide")
+    if mirrored {
+        PlaceHeaderLTR(rw, hdr)
+        ; resizable window: keep the lockup pinned to the visual left on resize
+        rw.OnEvent("Size", (*) => PlaceHeaderLTR(rw, hdr))
+    }
+    rw.Show()
     inp.Focus()
 
     ; -- nested helpers: closures over roles/texts/controls above ---------------
@@ -840,14 +898,37 @@ CheckApiKey() {
     ShowOnboarding()
 }
 
-; One reusable branded window header: red record dot + lockup.
+; One reusable branded window header: red record dot + lockup. The lockup must
+; ALWAYS read left-to-right — ● REC — Write Tool · <sub> — even in mirrored
+; Hebrew windows. Returns the header controls so PlaceHeaderLTR can re-anchor
+; them after AutoSize (mirrored windows lay controls out from the right).
 BrandHeader(g, sub := "") {
     g.BackColor := "FAF7EF"
     g.SetFont("s16 cEF4444", "Segoe UI")
-    g.Add("Text", "x16 y14", "●")
+    dot := g.Add("Text", "x16 y14", "●")
     g.SetFont("s13 c1A1B1D bold", "Segoe UI")
-    g.Add("Text", "x+8 yp+2", "REC — Write Tool" (sub != "" ? "   ·   " sub : ""))
+    brand := g.Add("Text", "x+8 yp+2", "REC — Write Tool")
+    parts := [dot, brand]
+    if (sub != "") {
+        g.SetFont("s13 c57534A norm", "Segoe UI")
+        parts.Push(g.Add("Text", "x+10 yp", "·"))
+        parts.Push(g.Add("Text", "x+10 yp", sub))
+    }
     g.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    return parts
+}
+
+; Re-place header controls at explicit visual-left coordinates. In a
+; WS_EX_LAYOUTRTL window logical x is measured from the RIGHT edge, so
+; logical = clientW - visualX - ctrlW. Call after Show("AutoSize Hide").
+PlaceHeaderLTR(g, parts) {
+    g.GetClientPos(, , &cw)
+    vx := 16
+    for c in parts {
+        c.GetPos(, , &w)
+        c.Move(cw - vx - w)
+        vx += w + 10
+    }
 }
 
 ShowOnboarding(page := 1) {
@@ -861,8 +942,9 @@ ShowOnboarding(page := 1) {
     g.OnEvent("Close", (*) => (g.Destroy(), g := ""))
     g.OnEvent("Escape", (*) => (g.Destroy(), g := ""))
 
+    hdr := []
     if (page = 1) {
-        BrandHeader(g, L["ob_title"])
+        hdr := BrandHeader(g, L["ob_title"])
         g.Add("Text", "xm y+14 w460", L["ob_what1"])
         g.Add("Text", "xm y+8 w460", L["ob_what2"])
         g.Add("Text", "xm y+8 w460", L["ob_what3"])
@@ -876,7 +958,7 @@ ShowOnboarding(page := 1) {
         nx := g.Add("Button", "xm y+18 w140 Default", L["ob_next"])
         nx.OnEvent("Click", (*) => ShowOnboarding(2))
     } else if (page = 2) {
-        BrandHeader(g, L["ob_key_head"])
+        hdr := BrandHeader(g, L["ob_key_head"])
         g.Add("Text", "xm y+14 w460", L["key_explain"])
         gk := g.Add("Button", "xm y+12 w180", L["key_get"])
         gk.OnEvent("Click", (*) => Run("https://aistudio.google.com/apikey"))
@@ -892,7 +974,7 @@ ShowOnboarding(page := 1) {
         g.Add("Text", "xm y+10 w460", L["key_privacy"])
         g.SetFont("s10 c1A1B1D norm", "Segoe UI")
     } else {
-        BrandHeader(g, L["ob_done_head"])
+        hdr := BrandHeader(g, L["ob_done_head"])
         g.SetFont("s11 c4F5D00 bold", "Segoe UI")
         g.Add("Text", "xm y+14", "✓  " L["key_saved"])
         g.SetFont("s10 c1A1B1D norm", "Segoe UI")
@@ -900,7 +982,10 @@ ShowOnboarding(page := 1) {
         fn := g.Add("Button", "xm y+16 w160 Default", L["ob_finish"])
         fn.OnEvent("Click", (*) => (g.Destroy(), g := ""))
     }
-    g.Show("AutoSize")
+    g.Show("AutoSize Hide")
+    if (uiLang = "he")
+        PlaceHeaderLTR(g, hdr)
+    g.Show()
 
     TestAndSave(*) {
         ; keys are [\w-] only — strip stray words/invisible unicode from web copies
@@ -932,30 +1017,36 @@ ShowOnboarding(page := 1) {
 }
 
 ; ---- settings window (tray → Settings, or double-click on Botan) ------------
+; Everything applies INSTANTLY — no Save button. A save-to-apply settings
+; window was WritingTools' single most repeated user complaint, and testing
+; showed people click a language and expect the world to change right there.
 ShowSettings() {
     global scriptDir, uiLang, L, menuHotkey
     s := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool — " L["set_title"])
-    BrandHeader(s, L["set_title"])
-    hkReset := false
+    hdr := BrandHeader(s, L["set_title"])
 
     s.Add("Text", "xm y+16", L["set_lang"])
     rHe := s.Add("Radio", "xm y+6" (uiLang = "he" ? " Checked" : ""), "עברית")
     rEn := s.Add("Radio", "x+16" (uiLang != "he" ? " Checked" : ""), "English")
+    rHe.OnEvent("Click", (*) => ApplyLanguage("he", s))
+    rEn.OnEvent("Click", (*) => ApplyLanguage("en", s))
 
     au := s.Add("Checkbox", "xm y+14" (IsAutostart() ? " Checked" : ""), L["set_autostart"])
+    au.OnEvent("Click", (*) => (SetAutostart(au.Value), Notify(L["set_saved"])))
 
-    ; Menu-hotkey picker: press the combo you want, no text editing anywhere.
-    ; (The Win32 hotkey control can't represent Space, so the current binding is
-    ; shown as text and an explicit reset button restores the default.)
+    ; Menu-hotkey picker: press the combo in the box — it applies on the spot.
+    ; (The Win32 hotkey control can't represent Space, so the current binding
+    ; lives in the bold line above and a reset button restores the default.)
     s.SetFont("s10 c1A1B1D bold", "Segoe UI")
-    s.Add("Text", "xm y+16", L["set_hotkey"] " " ReadableHotkey(menuHotkey))
+    hkCur := s.Add("Text", "xm y+16 w400", L["set_hotkey"] " " ReadableHotkey(menuHotkey) (menuHotkey = "^!Space" ? "  ✓" : ""))
     s.SetFont("s10 c1A1B1D norm", "Segoe UI")
     hkc := s.Add("Hotkey", "xm y+6 w200")
     rs := s.Add("Button", "x+8 w170", L["set_hotkey_reset"])
-    rs.OnEvent("Click", (*) => (hkReset := true, hkc.Value := ""))
     s.SetFont("s9 c6F695D norm", "Segoe UI")
     s.Add("Text", "xm y+4 w400", L["set_hotkey_note"])
     s.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    hkc.OnEvent("Change", (*) => SetTimer(ApplyPicked, -400))   ; debounce partial combos
+    rs.OnEvent("Click", (*) => (hkc.Value := "", ApplyHotkey("^!Space")))
 
     keyOk := false
     try keyOk := (RunWait(BrainCmd() " --has-key", scriptDir, "Hide") = 0)
@@ -963,32 +1054,53 @@ ShowSettings() {
     kb := s.Add("Button", "x+12 w150", L["set_key_change"])
     kb.OnEvent("Click", (*) => (s.Destroy(), ShowOnboarding(2)))
 
-    sv := s.Add("Button", "xm y+18 w140 Default", L["set_save"])
-    cl := s.Add("Button", "x+8 w100", L["btn_close"])
-    sv.OnEvent("Click", SaveFn)
+    cl := s.Add("Button", "xm y+18 w120 Default", L["btn_close"])
     cl.OnEvent("Click", (*) => s.Destroy())
     s.OnEvent("Close", (*) => s.Destroy())
     s.OnEvent("Escape", (*) => s.Destroy())
-    s.Show("AutoSize")
+    s.Show("AutoSize Hide")
+    if (uiLang = "he")
+        PlaceHeaderLTR(s, hdr)
+    s.Show()
 
-    SaveFn(*) {
-        SetAutostart(au.Value)
-        newLang := rHe.Value ? "he" : "en"
-        newHk := hkReset ? "^!Space" : (hkc.Value != "" ? hkc.Value : menuHotkey)
-        s.Destroy()
-        needReload := false
-        if (newLang != uiLang) {
-            try RunWait(BrainCmd() ' --set ui_language=' newLang, scriptDir, "Hide")
-            needReload := true
+    ApplyPicked() {
+        v := ""
+        try v := hkc.Value
+        if (v = "" || !RegExMatch(v, "[^\^!+#]"))   ; ignore modifier-only states
+            return
+        ApplyHotkey(v)
+    }
+    ApplyHotkey(hk) {
+        global menuHotkey
+        old := menuHotkey
+        if (hk = old) {
+            hkCur.Text := L["set_hotkey"] " " ReadableHotkey(menuHotkey) (menuHotkey = "^!Space" ? "  ✓" : "")
+            return
         }
-        if (newHk != menuHotkey) {
-            try RunWait(BrainCmd() ' --set "hotkey_menu=' newHk '"', scriptDir, "Hide")
-            needReload := true
+        try Hotkey(old, "Off")
+        if RegisterMenuHotkey(hk) {
+            try RunWait(BrainCmd() ' --set "hotkey_menu=' hk '"', scriptDir, "Hide")
+            BuildTray()   ; refresh the menu-hotkey hint line
+            Notify(L["hk_applied"] " " ReadableHotkey(hk))
+        } else {
+            Notify(L["hk_rejected"])
         }
-        if needReload
-            Reload()   ; applies language + hotkey; the tray tip re-announces
-        else
-            Notify(L["set_saved"])
+        hkCur.Text := L["set_hotkey"] " " ReadableHotkey(menuHotkey) (menuHotkey = "^!Space" ? "  ✓" : "")
+    }
+}
+
+; Live language switch: config first (the brain owns the file), then re-skin
+; everything built from L — tray now, this window by rebuilding it. No Reload.
+ApplyLanguage(newLang, settingsGui := "") {
+    global scriptDir, uiLang
+    if (newLang = uiLang)
+        return
+    try RunWait(BrainCmd() ' --set ui_language=' newLang, scriptDir, "Hide")
+    SetLang(newLang)
+    BuildTray()
+    if (settingsGui != "") {
+        try settingsGui.Destroy()
+        ShowSettings()
     }
 }
 
