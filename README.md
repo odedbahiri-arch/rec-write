@@ -7,7 +7,7 @@ keyboard layouts alike, and the UI itself speaks both languages.
 
 ## Install (60 seconds)
 
-1. Download the latest release zip from the [Releases page](../../releases/latest) and unzip it anywhere (e.g. `C:\Tools\REC-WriteTool`).
+1. Download the latest release zip from the [Releases page](../../releases/latest) and unzip it to a **permanent folder** (e.g. `C:\Tools\REC-WriteTool` — not Downloads, or autostart will break if you tidy up later).
 2. Run `REC-WriteTool.exe`. Botan (the peanut 🥜) appears in your tray.
 3. A short setup wizard opens: it explains the hotkeys, then walks you through
    getting a **free Gemini API key** (button opens
@@ -16,8 +16,26 @@ keyboard layouts alike, and the UI itself speaks both languages.
    completes, and stored only on your computer, in a `.env` next to the app.
 4. Select some text anywhere and press `Ctrl+Alt+J`. Done.
 
-Tray → **Settings** for interface language (English/עברית), starting with
-Windows, and changing the key later.
+Tray → **Settings** (or double-click Botan) for interface language
+(English/עברית), starting with Windows, your preferred menu hotkey, pausing the
+hotkeys, and changing the key later.
+
+> **Tip:** On Windows 11 new tray icons hide behind the **^** arrow near the
+> clock. Click it to find Botan — and drag him onto the taskbar to pin him.
+
+### "Windows protected your PC"?
+
+This is normal for a free tool downloaded from GitHub that isn't code-signed
+(signing certificates cost hundreds of dollars a year). Windows SmartScreen
+shows a blue **"Windows protected your PC"** box because the file is new and
+unsigned — not because anything is wrong. To proceed:
+
+1. Click **More info** (small link, easy to miss).
+2. Click **Run anyway**.
+
+If "Run anyway" doesn't appear: right-click the downloaded **zip** →
+Properties → check **Unblock** → OK, then re-extract. The whole source code of
+this tool is public in this repository — you can read exactly what it does.
 
 ## Hotkeys
 

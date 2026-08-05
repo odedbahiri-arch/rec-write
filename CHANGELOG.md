@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.2.0 — 2026-08-05
+
+UX hardening release, driven by a WritingTools issue-tracker autopsy, a free-API-tier research pass, and a full UX audit.
+
+- **Double-click Botan opens Settings**; tray menu simplified for non-technical users (config/script editors removed).
+- **Hotkey picker in Settings** — click the box, press the combo you want; default and recommendation shown; reset button. Stored in config, applied on save.
+- **"REC — working…" cursor tooltip** during every API call, and all operational messages moved from toast notifications to cursor tooltips — Do-Not-Disturb can no longer silence errors.
+- **Wrong-window paste guard**: if you switch windows during a slow call, the result goes to the clipboard with a note instead of pasting into the wrong app.
+- **Physical modifier-release wait** before the copy simulation (kills the classic "hotkey typed a letter over my selection" failure class, WritingTools #183/#207).
+- **Pause hotkeys** tray toggle.
+- **Safer key changes**: a new key is stripped of stray characters, live-tested, and a working old key is restored if the new one fails.
+- **Typed no-key (6) and offline (7) exit codes** — missing key reopens the wizard; being offline says so in plain language.
+- **Model pinned to `gemini-3.1-flash-lite`** (free tier, best Hebrew of the free field) with automatic fallback to `gemini-2.5-flash-lite` — no more `-latest` alias surprises.
+- Result window strips Markdown syntax for display (Copy all still exports Markdown).
+- Onboarding discloses the free-tier privacy tradeoff and daily cap; README gained the SmartScreen "Windows protected your PC" walkthrough and Win11 hidden-tray-icon tip.
+
 ## v1.1.0 — 2026-08-05
 
 Friendly first-run, borrowed with pride from WritingTools' onboarding flow.

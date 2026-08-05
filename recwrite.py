@@ -20,6 +20,8 @@ Exit codes:  0 = success (outfile written / text printed)
              4 = rate limited / quota exhausted — retryable
              5 = success BUT the answer was cut short (hit the output limit);
                  the outfile IS written, so the caller may still paste it
+             6 = no API key configured (the AHK layer reopens the key wizard)
+             7 = network problem (offline / timeout) — user-fixable, say so
 """
 
 import sys
@@ -42,6 +44,7 @@ INCOMPATIBLE = "ERROR_TEXT_INCOMPATIBLE_WITH_REQUEST"
 
 EXIT_OK, EXIT_ERROR, EXIT_INCOMPATIBLE = 0, 1, 2
 EXIT_BLOCKED, EXIT_RATELIMIT, EXIT_TRUNCATED = 3, 4, 5
+EXIT_NOKEY, EXIT_NETWORK = 6, 7
 
 # Turn Gemini's safety filtering off. A proofreader is asked to fix angry emails,
 # medical notes and legal threats — the default filters refuse those, and a refusal
@@ -142,7 +145,10 @@ def load_api_key(cfg, log):
                     val = line.split("=", 1)[1].strip().strip('"').strip("'")
                     if val:
                         return val
-    raise RuntimeError(f"API key '{var}' not found (env, config env_file, or .env beside the app)")
+    raise BrainError(
+        f"API key '{var}' not found (env, config env_file, or .env beside the app)",
+        EXIT_NOKEY,
+    )
 
 
 # ----------------------------------------------------------------------------- provider
@@ -171,9 +177,9 @@ def call_gemini(cfg, api_key, instruction, contents, log):
             url, json=payload, timeout=timeout, headers={"x-goog-api-key": api_key}
         )
     except requests.Timeout:
-        raise BrainError(f"Gemini timed out after {timeout}s", EXIT_ERROR)
+        raise BrainError(f"Gemini timed out after {timeout}s", EXIT_NETWORK)
     except requests.RequestException as e:
-        raise BrainError(f"network error reaching Gemini: {e}", EXIT_ERROR)
+        raise BrainError(f"network error reaching Gemini: {e}", EXIT_NETWORK)
 
     if r.status_code == 429:
         raise BrainError("rate limited by Gemini (quota) — retry shortly", EXIT_RATELIMIT)
@@ -205,6 +211,21 @@ def call_gemini(cfg, api_key, instruction, contents, log):
         raise BrainError(f"empty response (finishReason={finish or 'unknown'})", EXIT_ERROR)
 
     return text, finish == "MAX_TOKENS"
+
+
+def call_with_fallback(cfg, api_key, instruction, contents, log):
+    """Google retires/renames models with little runway; a pinned model id plus
+    a pinned fallback keeps every installed copy working through the churn."""
+    try:
+        return call_gemini(cfg, api_key, instruction, contents, log)
+    except BrainError as e:
+        fb = cfg.get("model_fallback")
+        if fb and fb != cfg.get("model") and "HTTP 404" in str(e):
+            log.warning(f"model '{cfg.get('model')}' returned 404 — retrying with '{fb}'")
+            cfg2 = dict(cfg)
+            cfg2["model"] = fb
+            return call_gemini(cfg2, api_key, instruction, contents, log)
+        raise
 
 
 # ----------------------------------------------------------------------------- core
@@ -239,7 +260,7 @@ def transform(action, text, log, instruction_override=None):
     provider = cfg.get("provider", "gemini")
     if provider != "gemini":
         raise BrainError(f"Unknown provider '{provider}'", EXIT_ERROR)
-    out, truncated = call_gemini(
+    out, truncated = call_with_fallback(
         cfg, api_key, instruction, [{"role": "user", "parts": [{"text": user_turn}]}], log
     )
 
@@ -305,7 +326,7 @@ def followup(history_path, log, token=None):
 
     pv = make_preview(cfg)
     log.info(f"action=chat  turns={len(turns)}  q={pv(turns[-1][1])}")
-    out, truncated = call_gemini(cfg, api_key, instruction, contents, log)
+    out, truncated = call_with_fallback(cfg, api_key, instruction, contents, log)
     if truncated:
         log.warning("answer hit the output limit and was cut short")
     log.info(f"action=chat  out={pv(out)}")
@@ -395,6 +416,7 @@ def main():
                 f"window_actions={','.join(names)}\n"
                 f"paste_settle_ms={int(cfg.get('paste_settle_ms', 300))}\n"
                 f"ui_language={cfg.get('ui_language', 'en')}\n"
+                f"hotkey_menu={cfg.get('hotkey_menu', '^!Space')}\n"
             )
             return EXIT_OK
 
@@ -406,7 +428,7 @@ def main():
             key, raw = key.strip(), raw.strip()
             # only scalar knobs — never actions/prompts, which deserve an editor
             allowed = {"ui_language", "model", "temperature", "timeout_seconds",
-                       "paste_settle_ms", "log_text_previews"}
+                       "paste_settle_ms", "log_text_previews", "hotkey_menu"}
             if key not in allowed:
                 sys.stderr.write(f"RecWrite: --set refuses '{key}' (allowed: {', '.join(sorted(allowed))})\n")
                 return EXIT_ERROR

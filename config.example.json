@@ -1,6 +1,7 @@
 {
   "provider": "gemini",
-  "model": "gemini-flash-lite-latest",
+  "model": "gemini-3.1-flash-lite",
+  "model_fallback": "gemini-2.5-flash-lite",
   "api_key_var": "GOOGLE_API_KEY",
   "temperature": 0.4,
   "timeout_seconds": 30,

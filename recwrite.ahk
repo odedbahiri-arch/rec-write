@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.1.0"
+APP_VERSION := "1.2.0"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -93,15 +93,23 @@ SetLang(lang) {
         "copied_answer", "Answer copied", "copied_all", "Conversation copied",
         "fu", "Follow-up",
         "tray_active", "● REC — Write Tool",
-        "tray_popup", "Popup menu: Ctrl+Alt+Space",
+        "tray_popup", "Menu:",
         "tray_direct", "Direct: Ctrl+Alt+ J R F P C S K T",
-        "tray_log", "Open log", "tray_config", "Edit config",
-        "tray_hotkeys", "Edit hotkeys (this script)",
         "tray_selftest", "Self-test", "tray_reload", "Reload",
         "tray_exit", "Exit",
         "tray_update", "Check for updates",
         "upd_avail", "A new version is available", "upd_open", "Open the download page?",
         "upd_none", "You're up to date", "upd_err", "Couldn't check for updates",
+        "tray_pause", "Pause hotkeys",
+        "paused", "Hotkeys paused — click again to resume",
+        "resumed", "Hotkeys back on",
+        "working", "REC — working…",
+        "still_working", "Still working on the previous one…",
+        "copied_fallback", "The window changed — the result is on your clipboard, paste with Ctrl+V",
+        "nokey", "No API key set — opening setup",
+        "offline", "no internet connection — check the network and try again",
+        "key_empty", "Paste a key first",
+        "key_privacy", "Good to know: you need a Google account (Gmail); a school/work account may be blocked. On the free tier Google may use processed text to improve its models. Daily cap is ~1,000 actions — plenty for writing.",
         "key_title", "API key setup",
         "key_explain", "REC — Write Tool runs on Google's Gemini — the free tier is plenty. Click the button to get a free key (takes ~30 seconds, no credit card), paste it below, and hit Test && Save. The key is stored only on this computer.",
         "key_save", "Save key",
@@ -120,7 +128,7 @@ SetLang(lang) {
         "ob_next", "Next",
         "ob_key_head", "Connect your free AI key",
         "ob_done_head", "You're all set!",
-        "ob_done_try", "Try it now: select some text anywhere and press Ctrl+Alt+J to proofread — or Ctrl+Alt+Space for the full menu. Botan in the tray means it's running.",
+        "ob_done_try", "Try it now: select some text anywhere and press Ctrl+Alt+J to proofread — or Ctrl+Alt+Space for the full menu. Botan in the tray means it's running — if you don't see him, click the ^ arrow near the clock (you can drag him onto the taskbar to pin him).",
         "ob_finish", "Start writing",
         "set_title", "Settings",
         "set_lang", "Interface language:",
@@ -129,7 +137,9 @@ SetLang(lang) {
         "set_key_ok", "configured",
         "set_key_missing", "missing",
         "set_key_change", "Change key…",
-        "set_open_config", "Advanced (config.json)…",
+        "set_hotkey", "Menu hotkey — current:",
+        "set_hotkey_note", "Click the box and press the combo you want. Recommended: Ctrl+Alt+Space (the default). The direct hotkeys (Ctrl+Alt+letter) are fixed.",
+        "set_hotkey_reset", "Reset to default",
         "set_save", "Save",
         "set_saved", "Settings saved",
         "tray_settings", "Settings…",
@@ -171,15 +181,23 @@ SetLang(lang) {
         "copied_answer", "התשובה הועתקה", "copied_all", "השיחה הועתקה",
         "fu", "שאלת המשך",
         "tray_active", "● REC — Write Tool — פעיל",
-        "tray_popup", "תפריט: Ctrl+Alt+Space",
+        "tray_popup", "תפריט:",
         "tray_direct", "ישיר: Ctrl+Alt+ J R F P C S K T",
-        "tray_log", "פתיחת היומן", "tray_config", "עריכת ההגדרות",
-        "tray_hotkeys", "עריכת הקיצורים",
         "tray_selftest", "בדיקה עצמית", "tray_reload", "טעינה מחדש",
         "tray_exit", "יציאה",
         "tray_update", "בדיקת עדכונים",
         "upd_avail", "יש גרסה חדשה", "upd_open", "לפתוח את דף ההורדה?",
         "upd_none", "הגרסה הכי עדכנית", "upd_err", "בדיקת העדכונים לא הצליחה",
+        "tray_pause", "השהיית הקיצורים",
+        "paused", "הקיצורים מושהים — לחיצה נוספת מפעילה שוב",
+        "resumed", "הקיצורים פועלים שוב",
+        "working", "REC — חושב…",
+        "still_working", "עדיין עובד על הפעולה הקודמת…",
+        "copied_fallback", "החלון התחלף — התוצאה הועתקה, אפשר להדביק עם Ctrl+V",
+        "nokey", "לא מוגדר מפתח — פותח את ההגדרה",
+        "offline", "אין חיבור לאינטרנט — כדאי לבדוק את הרשת ולנסות שוב",
+        "key_empty", "קודם מדביקים מפתח",
+        "key_privacy", "טוב לדעת: צריך חשבון Google (Gmail); חשבון של עבודה או בית ספר עלול להיות חסום. בגרסה החינמית גוגל עשויה להשתמש בטקסט לשיפור המודלים. המכסה היומית — כ-1,000 פעולות, הרבה מעבר לכתיבה רגילה.",
         "key_title", "הגדרת מפתח API",
         "key_explain", "REC — Write Tool עובד עם Gemini של גוגל — והחינמי מספיק בגדול. לוחצים על הכפתור לקבלת מפתח חינם (לוקח חצי דקה, בלי כרטיס אשראי), מדביקים למטה ולוחצים על בדיקה ושמירה. המפתח נשמר רק במחשב הזה.",
         "key_save", "שמירת המפתח",
@@ -198,7 +216,7 @@ SetLang(lang) {
         "ob_next", "המשך",
         "ob_key_head", "חיבור מפתח AI חינמי",
         "ob_done_head", "הכול מוכן!",
-        "ob_done_try", "שווה לנסות עכשיו: מסמנים טקסט בכל מקום ולוחצים Ctrl+Alt+J להגהה — או Ctrl+Alt+Space לתפריט המלא. בוטן במגש המערכת = הכלי רץ.",
+        "ob_done_try", "שווה לנסות עכשיו: מסמנים טקסט בכל מקום ולוחצים Ctrl+Alt+J להגהה — או Ctrl+Alt+Space לתפריט המלא. בוטן ליד השעון = הכלי רץ. לא רואים אותו? לוחצים על חץ ה-^ ליד השעון (אפשר לגרור אותו לשורת המשימות כדי לקבע).",
         "ob_finish", "מתחילים לכתוב",
         "set_title", "הגדרות",
         "set_lang", "שפת הממשק:",
@@ -207,7 +225,9 @@ SetLang(lang) {
         "set_key_ok", "מוגדר",
         "set_key_missing", "חסר",
         "set_key_change", "החלפת מפתח…",
-        "set_open_config", "מתקדם (config.json)…",
+        "set_hotkey", "קיצור התפריט — כרגע:",
+        "set_hotkey_note", "לוחצים על התיבה ומקישים את הצירוף הרצוי. מומלץ: Ctrl+Alt+Space (ברירת המחדל). הקיצורים הישירים (Ctrl+Alt+אות) קבועים.",
+        "set_hotkey_reset", "חזרה לברירת המחדל",
         "set_save", "שמירה",
         "set_saved", "ההגדרות נשמרו",
         "tray_settings", "הגדרות…",
@@ -241,7 +261,38 @@ HasHebrew(t) {
 ^!sc01F::RunAction("summary")       ; S
 ^!sc025::RunAction("keypoints")     ; K
 ^!sc014::RunAction("table")         ; T
-^!Space::ShowPopup()                ; the popup menu (layout-independent)
+; The menu hotkey is config-owned ("hotkey_menu", default Ctrl+Alt+Space) and
+; registered dynamically in RegisterMenuHotkey() so Settings can rebind it
+; without anyone touching this file.
+menuHotkey := "^!Space"
+
+RegisterMenuHotkey(hk) {
+    global menuHotkey
+    try {
+        Hotkey(hk, (*) => ShowPopup(), "On")
+        menuHotkey := hk
+        return true
+    } catch as e {
+        Log("hotkey_menu '" hk "' rejected (" e.Message ") — falling back to ^!Space")
+        try Hotkey("^!Space", (*) => ShowPopup(), "On")
+        menuHotkey := "^!Space"
+        return false
+    }
+}
+
+; "^!Space" → "Ctrl+Alt+Space" for labels and tray hints.
+ReadableHotkey(hk) {
+    s := ""
+    if InStr(hk, "^")
+        s .= "Ctrl+"
+    if InStr(hk, "!")
+        s .= "Alt+"
+    if InStr(hk, "+")
+        s .= "Shift+"
+    if InStr(hk, "#")
+        s .= "Win+"
+    return s . Format("{:T}", RegExReplace(hk, "[\^!+#]"))
+}
 
 ; ============================================================================
 ;  Direct-hotkey path: capture happens while the source app still has focus,
@@ -250,11 +301,14 @@ HasHebrew(t) {
 RunAction(action) {
     global busy
     Log("HOTKEY " action (busy ? " (ignored: busy)" : ""))
-    if busy
+    if busy {
+        Notify(L["still_working"])
         return
+    }
     busy := true
     ReleaseMods()
     saved := ClipboardAll()
+    src := WinExist("A")                 ; remember where the text came from
     try {
         text := CaptureSelection()
         if (text = "") {
@@ -262,12 +316,13 @@ RunAction(action) {
             return
         }
         Log("fired " action " — captured " StrLen(text) " chars")
-        Handle(action, text, "", saved)
+        keep := Handle(action, text, "", saved, src)
     } catch as e {
         Notify(ActLabel(action) " — " e.Message)
         Log(action " -> EXCEPTION: " e.Message)
     } finally {
-        A_Clipboard := saved
+        if !IsSet(keep) || !keep
+            A_Clipboard := saved
         saved := ""
         busy := false
     }
@@ -358,11 +413,12 @@ MenuPick(itemName, itemPos, myMenu) {
             WinActivate("ahk_id " popupSrc)
             WinWaitActive("ahk_id " popupSrc, , 1)
         }
-        Handle(action, popupText, instr, popupSaved)
+        keep := Handle(action, popupText, instr, popupSaved, popupSrc)
     } catch as e {
         Notify(ActLabel(action) " — " e.Message)
     } finally {
-        A_Clipboard := popupSaved
+        if !IsSet(keep) || !keep
+            A_Clipboard := popupSaved
         popupSaved := "", popupText := ""
         busy := false
     }
@@ -371,9 +427,11 @@ MenuPick(itemName, itemPos, myMenu) {
 ; ============================================================================
 ;  Shared: run the brain, then paste OR open a result window.
 ; ============================================================================
-Handle(action, text, instruction, saved) {
+Handle(action, text, instruction, saved, srcWin := 0) {
     global windowActions, settleMs
+    ToolTip(L["working"])               ; in-flight feedback — DND can't mute a tooltip
     r := CallBrain(action, text, instruction)
+    ToolTip()
     ; Exit codes are the brain's vocabulary — see the docstring in recwrite.py.
     ; Codes 0 and 5 both carry a usable result; everything else is a dead end.
     if (r.code = 2) {
@@ -386,6 +444,15 @@ Handle(action, text, instruction, saved) {
     }
     if (r.code = 4) {
         Notify(ActLabel(action) " — " L["rate"])
+        return
+    }
+    if (r.code = 6) {
+        Notify(L["nokey"])
+        ShowOnboarding(2)               ; missing key: reopen the wizard, not a log pointer
+        return
+    }
+    if (r.code = 7) {
+        Notify(ActLabel(action) " — " L["offline"])
         return
     }
     if (r.code != 0 && r.code != 5) {
@@ -402,12 +469,28 @@ Handle(action, text, instruction, saved) {
         ShowResultWindow(action, text, r.text)
         Log(action " -> shown in window (" StrLen(r.text) " chars)")
     } else {
+        ; If the user wandered off during a slow call, do NOT paste into
+        ; whatever window is focused now — that overwrites unrelated work.
+        if (srcWin && WinExist("A") != srcWin) {
+            ok := false
+            try {
+                WinActivate("ahk_id " srcWin)
+                ok := WinWaitActive("ahk_id " srcWin, , 1)
+            }
+            if !ok {
+                A_Clipboard := r.text
+                Notify(L["copied_fallback"])
+                Log(action " -> source window gone; result left on clipboard")
+                return true    ; tells the caller: do NOT restore the old clipboard
+            }
+        }
         A_Clipboard := r.text
         if ClipWait(2)
             Send("^v")
         Sleep(settleMs)
         Log(action " -> pasted " StrLen(r.text) " chars")
     }
+    return false
 }
 
 CallBrain(action, text, instruction) {
@@ -441,7 +524,7 @@ CallBrain(action, text, instruction) {
 ; paste settle delay). Keeps config.json the single source of truth; falls back
 ; to the built-in defaults if python isn't reachable — and never dies trying.
 LoadSettings() {
-    global scriptDir, tmpOut, windowActions, settleMs
+    global scriptDir, tmpOut, windowActions, settleMs, menuHotkey
     try FileDelete(tmpOut)
     code := -1
     try code := RunWait(BrainCmd() ' --ahk-settings --outfile "' tmpOut '"', scriptDir, "Hide")
@@ -459,6 +542,8 @@ LoadSettings() {
                 settleMs := Integer(v)
             else if (k = "ui_language" && v != "")
                 SetLang(v)
+            else if (k = "hotkey_menu" && v != "")
+                menuHotkey := v
         }
         Log("settings from config: windows=" windowActions " settle=" settleMs "ms")
     } else {
@@ -494,7 +579,9 @@ CallChat(roles, texts) {
 CaptureSelection() {
     A_Clipboard := ""
     Send("^c")
-    if !ClipWait(2)
+    ; 1s, not longer: with nothing selected this wait runs to the end before we
+    ; can say "no text selected" — a long timeout reads as the tool hanging.
+    if !ClipWait(1)
         return ""
     return A_Clipboard
 }
@@ -549,7 +636,7 @@ ShowResultWindow(action, srcText, resultText) {
             if (A_Index = 1)          ; the original selection — context, not content
                 continue
             s .= (roles[A_Index] = "user" ? L["sep_user"] "`r`n" : L["sep_assistant"] "`r`n")
-            s .= ToCRLF(texts[A_Index]) "`r`n`r`n"
+            s .= ToCRLF(DisplayText(texts[A_Index])) "`r`n`r`n"
         }
         ed.Value := s
         ; keep the newest message in view
@@ -607,14 +694,33 @@ ToCRLF(t) {
     return StrReplace(StrReplace(t, "`r`n", "`n"), "`n", "`r`n")
 }
 
+; The model answers in Markdown; a plain Edit control shows the syntax as
+; garbage symbols ("**חשוב**"). Strip the light stuff for DISPLAY only —
+; "Copy all (Markdown)" still exports the real thing.
+DisplayText(t) {
+    t := RegExReplace(t, "\*\*(.*?)\*\*", "$1")     ; **bold**
+    t := RegExReplace(t, "m)^#{1,6}\s*", "")          ; # headings
+    t := RegExReplace(t, "``(.*?)``", "$1")           ; `code`
+    t := RegExReplace(t, "m)^\s*[-*]\s", "• ")       ; list bullets
+    return t
+}
+
 ; ---- helpers ----------------------------------------------------------------
 ReleaseMods() {
     Send("{Ctrl up}{Alt up}{Shift up}")
+    ; Also wait for the PHYSICAL keys: injecting ^c while the user still holds
+    ; the hotkey's own modifiers is WritingTools' #1 destroyed-text bug class
+    ; (their issues #183/#207 — the 'c' lands unmodified and overwrites the
+    ; selection). Timeout keeps a stuck key from freezing us.
+    KeyWait("Ctrl", "T0.5"), KeyWait("Alt", "T0.5"), KeyWait("Shift", "T0.5")
     Sleep(30)
 }
+; Operational feedback rides a cursor-anchored ToolTip, NOT TrayTip: Windows 11
+; turns TrayTips into toasts, which Do-Not-Disturb / Focus sessions silently
+; swallow — and then "no text selected" or "rate limited" becomes dead silence.
 Notify(msg) {
-    TrayTip("REC — Write Tool", msg, 1)
-    SetTimer(() => TrayTip(), -2500)
+    ToolTip(msg)
+    SetTimer(() => ToolTip(), -2500)
 }
 Log(msg) {
     global logFile
@@ -623,7 +729,7 @@ Log(msg) {
 
 ; ---- tray -------------------------------------------------------------------
 BuildTray() {
-    global scriptDir, logFile, L
+    global scriptDir, L, menuHotkey
     ; Botan — the RecStudio mascot — is the tray face of the tool.
     if FileExist(scriptDir "\botan.ico")
         try TraySetIcon(scriptDir "\botan.ico")
@@ -631,22 +737,36 @@ BuildTray() {
     A_TrayMenu.Add(L["tray_active"], (*) => "")
     A_TrayMenu.Disable(L["tray_active"])
     A_TrayMenu.Add()
-    A_TrayMenu.Add(L["tray_popup"], (*) => "")
-    A_TrayMenu.Disable(L["tray_popup"])
+    hint := L["tray_popup"] " " ReadableHotkey(menuHotkey)
+    A_TrayMenu.Add(hint, (*) => "")
+    A_TrayMenu.Disable(hint)
     A_TrayMenu.Add(L["tray_direct"], (*) => "")
     A_TrayMenu.Disable(L["tray_direct"])
     A_TrayMenu.Add()
     A_TrayMenu.Add(L["tray_settings"], (*) => ShowSettings())
-    A_TrayMenu.Add(L["tray_log"], (*) => Run(logFile))
-    A_TrayMenu.Add(L["tray_config"], (*) => Run('notepad.exe "' scriptDir '\config.json"'))
-    A_TrayMenu.Add(L["tray_hotkeys"], (*) => Run('notepad.exe "' A_ScriptFullPath '"'))
+    A_TrayMenu.Add(L["tray_pause"], TogglePause)
     A_TrayMenu.Add(L["tray_selftest"], (*) => SelfTest())
     A_TrayMenu.Add(L["tray_update"], (*) => CheckUpdates())
     A_TrayMenu.Add(L["tray_reload"], (*) => Reload())
     A_TrayMenu.Add()
     A_TrayMenu.Add(L["tray_exit"], (*) => ExitApp())
+    ; double-click on Botan opens Settings — the WritingTools convention
+    A_TrayMenu.Default := L["tray_settings"]
     A_IconTip := L["tip_tooltip"]
 }
+; A one-click mute for every global hotkey — a global keyboard hook you can't
+; switch off is scary; this is the trust valve (WritingTools' Pause/Resume).
+TogglePause(*) {
+    global L
+    Suspend(-1)
+    if A_IsSuspended
+        A_TrayMenu.Check(L["tray_pause"])
+    else
+        A_TrayMenu.Uncheck(L["tray_pause"])
+    TrayTip("REC — Write Tool", A_IsSuspended ? L["paused"] : L["resumed"], 1)
+    SetTimer(() => TrayTip(), -2500)
+}
+
 SelfTest() {
     global scriptDir
     code := -1
@@ -696,7 +816,8 @@ if (!FileExist(brainExe) && !FileExist(pythonExe)) {
     }
 }
 
-LoadSettings()   ; must run before BuildTray — it decides the UI language
+LoadSettings()   ; must run before BuildTray — it decides the UI language + hotkey
+RegisterMenuHotkey(menuHotkey)
 BuildTray()
 CheckApiKey()    ; first run: no key yet → branded setup dialog
 Log("=== RecWrite started (popup + 8 direct hotkeys, ui=" uiLang ") ===")
@@ -767,6 +888,9 @@ ShowOnboarding(page := 1) {
         g.SetFont("s10 c1A1B1D norm", "Segoe UI")
         ts := g.Add("Button", "xm y+8 w180 Default", L["key_test_save"])
         ts.OnEvent("Click", TestAndSave)
+        g.SetFont("s9 c6F695D norm", "Segoe UI")
+        g.Add("Text", "xm y+10 w460", L["key_privacy"])
+        g.SetFont("s10 c1A1B1D norm", "Segoe UI")
     } else {
         BrandHeader(g, L["ob_done_head"])
         g.SetFont("s11 c4F5D00 bold", "Segoe UI")
@@ -779,9 +903,14 @@ ShowOnboarding(page := 1) {
     g.Show("AutoSize")
 
     TestAndSave(*) {
-        k := Trim(ed.Value)
-        if (k = "")
+        ; keys are [\w-] only — strip stray words/invisible unicode from web copies
+        k := RegExReplace(Trim(ed.Value), "[^\w\-]")
+        if (k = "") {
+            err.Text := L["key_empty"]
             return
+        }
+        ; never destroy a working key for an unproven one — restore on failure
+        oldEnv := FileExist(scriptDir "\.env") ? FileRead(scriptDir "\.env", "UTF-8") : ""
         f := FileOpen(scriptDir "\.env", "w", "UTF-8-RAW")
         f.Write("GOOGLE_API_KEY=" k "`n")
         f.Close()
@@ -789,18 +918,25 @@ ShowOnboarding(page := 1) {
         code := 1
         try code := RunWait(BrainCmd() " --selftest", scriptDir, "Hide")   ; real round-trip
         ts.Enabled := true, ts.Text := L["key_test_save"]
-        if (code = 0)
+        if (code = 0) {
             ShowOnboarding(3)
-        else
+        } else {
+            if (oldEnv != "") {
+                f := FileOpen(scriptDir "\.env", "w", "UTF-8-RAW")
+                f.Write(oldEnv)
+                f.Close()
+            }
             err.Text := L["key_failed"]
+        }
     }
 }
 
-; ---- settings window (tray → Settings) --------------------------------------
+; ---- settings window (tray → Settings, or double-click on Botan) ------------
 ShowSettings() {
-    global scriptDir, uiLang, L
+    global scriptDir, uiLang, L, menuHotkey
     s := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool — " L["set_title"])
     BrandHeader(s, L["set_title"])
+    hkReset := false
 
     s.Add("Text", "xm y+16", L["set_lang"])
     rHe := s.Add("Radio", "xm y+6" (uiLang = "he" ? " Checked" : ""), "עברית")
@@ -808,14 +944,24 @@ ShowSettings() {
 
     au := s.Add("Checkbox", "xm y+14" (IsAutostart() ? " Checked" : ""), L["set_autostart"])
 
+    ; Menu-hotkey picker: press the combo you want, no text editing anywhere.
+    ; (The Win32 hotkey control can't represent Space, so the current binding is
+    ; shown as text and an explicit reset button restores the default.)
+    s.SetFont("s10 c1A1B1D bold", "Segoe UI")
+    s.Add("Text", "xm y+16", L["set_hotkey"] " " ReadableHotkey(menuHotkey))
+    s.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    hkc := s.Add("Hotkey", "xm y+6 w200")
+    rs := s.Add("Button", "x+8 w170", L["set_hotkey_reset"])
+    rs.OnEvent("Click", (*) => (hkReset := true, hkc.Value := ""))
+    s.SetFont("s9 c6F695D norm", "Segoe UI")
+    s.Add("Text", "xm y+4 w400", L["set_hotkey_note"])
+    s.SetFont("s10 c1A1B1D norm", "Segoe UI")
+
     keyOk := false
     try keyOk := (RunWait(BrainCmd() " --has-key", scriptDir, "Hide") = 0)
-    s.Add("Text", "xm y+14", L["set_key"] " " (keyOk ? "✓ " L["set_key_ok"] : "✗ " L["set_key_missing"]))
+    s.Add("Text", "xm y+16", L["set_key"] " " (keyOk ? "✓ " L["set_key_ok"] : "✗ " L["set_key_missing"]))
     kb := s.Add("Button", "x+12 w150", L["set_key_change"])
     kb.OnEvent("Click", (*) => (s.Destroy(), ShowOnboarding(2)))
-
-    oc := s.Add("Button", "xm y+16 w220", L["set_open_config"])
-    oc.OnEvent("Click", (*) => Run('notepad.exe "' scriptDir '\config.json"'))
 
     sv := s.Add("Button", "xm y+18 w140 Default", L["set_save"])
     cl := s.Add("Button", "x+8 w100", L["btn_close"])
@@ -828,13 +974,21 @@ ShowSettings() {
     SaveFn(*) {
         SetAutostart(au.Value)
         newLang := rHe.Value ? "he" : "en"
+        newHk := hkReset ? "^!Space" : (hkc.Value != "" ? hkc.Value : menuHotkey)
         s.Destroy()
+        needReload := false
         if (newLang != uiLang) {
-            ; the brain rewrites config.json safely; a reload applies the language
             try RunWait(BrainCmd() ' --set ui_language=' newLang, scriptDir, "Hide")
-            Reload()
+            needReload := true
         }
-        Notify(L["set_saved"])
+        if (newHk != menuHotkey) {
+            try RunWait(BrainCmd() ' --set "hotkey_menu=' newHk '"', scriptDir, "Hide")
+            needReload := true
+        }
+        if needReload
+            Reload()   ; applies language + hotkey; the tray tip re-announces
+        else
+            Notify(L["set_saved"])
     }
 }
 
