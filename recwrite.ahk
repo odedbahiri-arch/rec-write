@@ -90,6 +90,8 @@ SetLang(lang) {
         "custom_prompt", "Describe the change you want (any language):",
         "p_cue", "Describe any change… (then Enter)",
         "p_chars", "chars selected",
+        "p_hint", "select text, then Ctrl+Alt+Space",
+        "tray_menu", "Menu",
         "followup_label", "Ask a follow-up (Enter to send):",
         "btn_ask", "Ask", "btn_copy_answer", "Copy answer",
         "btn_copy_all", "Copy all (Markdown)", "btn_close", "Close",
@@ -183,6 +185,8 @@ SetLang(lang) {
         "custom_prompt", "מה לעשות בטקסט? (אפשר בכל שפה)",
         "p_cue", "מה לעשות בטקסט? כותבים כאן ולוחצים Enter",
         "p_chars", "תווים מסומנים",
+        "p_hint", "מסמנים טקסט ואז Ctrl+Alt+Space",
+        "tray_menu", "תפריט",
         "followup_label", "שאלת המשך (Enter לשליחה):",
         "btn_ask", "שליחה", "btn_copy_answer", "העתקת התשובה",
         "btn_copy_all", "העתקת הכול (Markdown)", "btn_close", "סגירה",
@@ -361,24 +365,31 @@ RunAction(action, *) {
 ;  the source window, THEN show the menu. When a button is picked we reactivate
 ;  the source window before pasting.
 ; ============================================================================
-ShowPopup() {
+; trayMode (double-click on Botan): same panel with no captured text — actions
+; are shown as a cheat-sheet (disabled) and Settings/Updates become buttons.
+ShowPopup(trayMode := false) {
     global busy, popupText, popupSrc, popupSaved, popupPicked, popupGui, uiLang, L, windowActions
-    if busy
-        return
-    busy := true                          ; direct hotkeys must not fight the popup for the clipboard
-    ReleaseMods()
-    popupSaved := ClipboardAll()
-    popupSrc := WinExist("A")            ; remember the source window
-    popupText := CaptureSelection()       ; grab the selection while it's still focused
-    if (popupText = "") {
-        A_Clipboard := popupSaved
-        popupSaved := ""
-        busy := false
-        Notify(L["popup_no_sel"])
-        return
+    if trayMode {
+        popupText := "", popupSaved := "", popupSrc := 0
+        popupPicked := true               ; nothing to restore on dismiss
+    } else {
+        if busy
+            return
+        busy := true                      ; direct hotkeys must not fight the popup for the clipboard
+        ReleaseMods()
+        popupSaved := ClipboardAll()
+        popupSrc := WinExist("A")        ; remember the source window
+        popupText := CaptureSelection()   ; grab the selection while it's still focused
+        if (popupText = "") {
+            A_Clipboard := popupSaved
+            popupSaved := ""
+            busy := false
+            Notify(L["popup_no_sel"])
+            return
+        }
+        Log("popup opened — captured " StrLen(popupText) " chars")
+        popupPicked := false
     }
-    Log("popup opened — captured " StrLen(popupText) " chars")
-    popupPicked := false
 
     ; A small branded button window at the cursor (the WritingTools shape):
     ; a free-text "describe any change" field up top, the actions as buttons.
@@ -390,7 +401,11 @@ ShowPopup() {
     p.SetFont("s9 c1A1B1D bold", "Segoe UI")
     phdr.Push(p.Add("Text", "x+6 yp+4", "REC — Write Tool"))
     p.SetFont("s9 c6F695D norm", "Segoe UI")
-    phdr.Push(p.Add("Text", "x+10 yp", StrLen(popupText) " " L["p_chars"]))
+    phdr.Push(p.Add("Text", "x+10 yp", trayMode ? L["p_hint"] : StrLen(popupText) " " L["p_chars"]))
+    p.SetFont("s11 c57534A norm", "Segoe UI")
+    gear := p.Add("Text", "x+12 yp-2", "⚙")
+    phdr.Push(gear)
+    gear.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
     p.SetFont("s10 c1A1B1D norm", "Segoe UI")
     ci := p.Add("Edit", "xm y+10 w306 BackgroundFFFFFF")
     SetCue(ci, L["p_cue"])
@@ -398,10 +413,19 @@ ShowPopup() {
     keys := ["proofread", "rewrite", "friendly", "professional", "concise", "summary", "keypoints", "table"]
     for i, k in keys {
         opt := (Mod(i, 2) = 1 ? "xm y+8" : "x+8 yp") " w185 h32"
-        p.Add("Button", opt, ActLabel(k) (InStr(windowActions, "," k ",") ? "  ⧉" : ""))
-            .OnEvent("Click", RunPick.Bind(k))
+        b := p.Add("Button", opt, ActLabel(k) (InStr(windowActions, "," k ",") ? "  ⧉" : ""))
+        b.OnEvent("Click", RunPick.Bind(k))
+        if trayMode
+            b.Enabled := false
     }
     go.OnEvent("Click", SendCustom)
+    if trayMode {
+        ci.Enabled := false, go.Enabled := false
+        st := p.Add("Button", "xm y+12 w185 h32", "⚙  " L["set_title"])
+        up := p.Add("Button", "x+8 w185 h32", L["tray_update"])
+        st.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
+        up.OnEvent("Click", (*) => (ClosePopup(), CheckUpdates()))
+    }
     p.OnEvent("Escape", (*) => ClosePopup())
     p.OnEvent("Close", (*) => ClosePopup())
 
@@ -823,6 +847,7 @@ BuildTray() {
     A_TrayMenu.Add(L["tray_direct"], (*) => "")
     A_TrayMenu.Disable(L["tray_direct"])
     A_TrayMenu.Add()
+    A_TrayMenu.Add(L["tray_menu"], (*) => ShowPopup(true))
     A_TrayMenu.Add(L["tray_settings"], (*) => ShowSettings())
     A_TrayMenu.Add(L["tray_pause"], TogglePause)
     A_TrayMenu.Add(L["tray_selftest"], (*) => SelfTest())
@@ -830,8 +855,8 @@ BuildTray() {
     A_TrayMenu.Add(L["tray_reload"], (*) => Reload())
     A_TrayMenu.Add()
     A_TrayMenu.Add(L["tray_exit"], (*) => ExitApp())
-    ; double-click on Botan opens Settings — the WritingTools convention
-    A_TrayMenu.Default := L["tray_settings"]
+    ; double-click on Botan opens the menu panel (Settings is a button inside it)
+    A_TrayMenu.Default := L["tray_menu"]
     A_IconTip := L["tip_tooltip"]
 }
 ; A one-click mute for every global hotkey — a global keyboard hook you can't
@@ -1158,6 +1183,8 @@ SetAutostart(on) {
 
 ; Dev/QA aid: `recwrite.ahk --preview-window` opens a demo result window at
 ; startup so the GUI can be eyeballed (and screenshotted) without a hotkey.
+if (A_Args.Length && A_Args[1] = "--preview-menu")
+    ShowPopup(true)
 if (A_Args.Length && A_Args[1] = "--preview-onboarding")
     ShowOnboarding(1)
 if (A_Args.Length && A_Args[1] = "--preview-settings")
