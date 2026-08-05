@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.1 — 2026-08-05
+
+- **Direct hotkeys can be switched off** (Settings → "קיצורים ישירים") for apps that bind their own Ctrl+Alt shortcuts (e.g. the new Notepad's formatting keys). The menu hotkey keeps every action reachable; the toggle applies instantly.
+
 ## v1.3.0 — 2026-08-05
 
 The popup grows up, settings go instant.

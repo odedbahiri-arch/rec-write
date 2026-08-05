@@ -8,6 +8,7 @@
   "paste_settle_ms": 300,
   "ui_language": "en",
   "log_text_previews": false,
+  "direct_hotkeys": true,
   "actions": {
     "proofread": {
       "label": "Proofread",

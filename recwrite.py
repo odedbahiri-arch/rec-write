@@ -417,6 +417,7 @@ def main():
                 f"paste_settle_ms={int(cfg.get('paste_settle_ms', 300))}\n"
                 f"ui_language={cfg.get('ui_language', 'en')}\n"
                 f"hotkey_menu={cfg.get('hotkey_menu', '^!Space')}\n"
+                f"direct_hotkeys={'true' if cfg.get('direct_hotkeys', True) else 'false'}\n"
             )
             return EXIT_OK
 
@@ -428,7 +429,8 @@ def main():
             key, raw = key.strip(), raw.strip()
             # only scalar knobs — never actions/prompts, which deserve an editor
             allowed = {"ui_language", "model", "temperature", "timeout_seconds",
-                       "paste_settle_ms", "log_text_previews", "hotkey_menu"}
+                       "paste_settle_ms", "log_text_previews", "hotkey_menu",
+                       "direct_hotkeys"}
             if key not in allowed:
                 sys.stderr.write(f"RecWrite: --set refuses '{key}' (allowed: {', '.join(sorted(allowed))})\n")
                 return EXIT_ERROR

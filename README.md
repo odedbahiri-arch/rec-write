@@ -108,6 +108,10 @@ truncated but usable.
   administrator** (Windows UIPI). Browsers, Office, chat apps are all fine.
 - In editors that "copy the whole line when nothing is selected" (VS Code
   style), a stray hotkey press can rewrite the current line — select first.
+- Some apps bind their own Ctrl+Alt shortcuts (the new Windows 11 Notepad's
+  formatting keys, Word accelerators). If a direct hotkey clashes in an app
+  you use a lot, turn off **Direct hotkeys** in Settings and work through the
+  menu hotkey — every action stays available there.
 
 ## Updates
 

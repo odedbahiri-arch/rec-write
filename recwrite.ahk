@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.3.0"
+APP_VERSION := "1.3.1"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -145,6 +145,8 @@ SetLang(lang) {
         "set_hotkey_note", "To change it: click the box and press the combo you want — it applies immediately. Recommended: the default, Ctrl+Alt+Space. The direct hotkeys (Ctrl+Alt+letter) are fixed.",
         "set_hotkey_reset", "Reset to default",
         "hk_applied", "Menu hotkey is now", "hk_rejected", "That combo can't be used — keeping the previous one",
+        "set_direct", "Direct hotkeys (Ctrl+Alt+letter)",
+        "set_direct_note", "Turn off if a combo clashes with an app's own shortcuts (e.g. Notepad's formatting) — the menu hotkey keeps every action available.",
         "set_save", "Save",
         "set_saved", "Settings saved",
         "tray_settings", "Settings…",
@@ -236,6 +238,8 @@ SetLang(lang) {
         "set_hotkey_note", "לשינוי: לוחצים על התיבה ומקישים את הצירוף הרצוי — הוא נכנס לתוקף מיד. מומלץ להישאר עם ברירת המחדל, Ctrl+Alt+Space. הקיצורים הישירים (Ctrl+Alt+אות) קבועים.",
         "set_hotkey_reset", "חזרה לברירת המחדל",
         "hk_applied", "קיצור התפריט מעכשיו:", "hk_rejected", "הצירוף הזה לא זמין — נשארים עם הקודם",
+        "set_direct", "קיצורים ישירים (Ctrl+Alt+אות)",
+        "set_direct_note", "כדאי לכבות אם קיצור מתנגש עם קיצורים של תוכנה (למשל העיצוב בפנקס הרשימות) — התפריט משאיר את כל הפעולות זמינות.",
         "set_save", "שמירה",
         "set_saved", "ההגדרות נשמרו",
         "tray_settings", "הגדרות…",
@@ -261,14 +265,30 @@ HasHebrew(t) {
 }
 
 ; ---- direct hotkeys (Ctrl+Alt+<physical position>) --------------------------
-^!sc024::RunAction("proofread")     ; J
-^!sc013::RunAction("rewrite")       ; R
-^!sc021::RunAction("friendly")      ; F
-^!sc019::RunAction("professional")  ; P
-^!sc02E::RunAction("concise")       ; C
-^!sc01F::RunAction("summary")       ; S
-^!sc025::RunAction("keypoints")     ; K
-^!sc014::RunAction("table")         ; T
+; Registered dynamically so Settings can switch them off: Ctrl+Alt+letter will
+; always clash with SOME app (the new Notepad's formatting shortcuts, Word's
+; accelerators…), and the escape hatch is popup-only mode — the menu hotkey
+; keeps every action reachable.
+directHotkeys := true
+directMap := Map(
+    "sc024", "proofread",     ; J
+    "sc013", "rewrite",       ; R
+    "sc021", "friendly",      ; F
+    "sc019", "professional",  ; P
+    "sc02E", "concise",       ; C
+    "sc01F", "summary",       ; S
+    "sc025", "keypoints",     ; K
+    "sc014", "table")         ; T
+
+RegisterDirectHotkeys(on) {
+    global directMap
+    for sc, act in directMap {
+        if on
+            Hotkey("^!" sc, RunAction.Bind(act), "On")
+        else
+            try Hotkey("^!" sc, "Off")
+    }
+}
 ; The menu hotkey is config-owned ("hotkey_menu", default Ctrl+Alt+Space) and
 ; registered dynamically in RegisterMenuHotkey() so Settings can rebind it
 ; without anyone touching this file.
@@ -306,7 +326,7 @@ ReadableHotkey(hk) {
 ;  Direct-hotkey path: capture happens while the source app still has focus,
 ;  so there is no focus/paste race.
 ; ============================================================================
-RunAction(action) {
+RunAction(action, *) {
     global busy
     Log("HOTKEY " action (busy ? " (ignored: busy)" : ""))
     if busy {
@@ -581,7 +601,7 @@ CallBrain(action, text, instruction) {
 ; paste settle delay). Keeps config.json the single source of truth; falls back
 ; to the built-in defaults if python isn't reachable — and never dies trying.
 LoadSettings() {
-    global scriptDir, tmpOut, windowActions, settleMs, menuHotkey
+    global scriptDir, tmpOut, windowActions, settleMs, menuHotkey, directHotkeys
     try FileDelete(tmpOut)
     code := -1
     try code := RunWait(BrainCmd() ' --ahk-settings --outfile "' tmpOut '"', scriptDir, "Hide")
@@ -601,6 +621,8 @@ LoadSettings() {
                 SetLang(v)
             else if (k = "hotkey_menu" && v != "")
                 menuHotkey := v
+            else if (k = "direct_hotkeys")
+                directHotkeys := (v = "true")
         }
         Log("settings from config: windows=" windowActions " settle=" settleMs "ms")
     } else {
@@ -874,8 +896,9 @@ if (!FileExist(brainExe) && !FileExist(pythonExe)) {
     }
 }
 
-LoadSettings()   ; must run before BuildTray — it decides the UI language + hotkey
+LoadSettings()   ; must run before BuildTray — it decides the UI language + hotkeys
 RegisterMenuHotkey(menuHotkey)
+RegisterDirectHotkeys(directHotkeys)
 BuildTray()
 CheckApiKey()    ; first run: no key yet → branded setup dialog
 Log("=== RecWrite started (popup + 8 direct hotkeys, ui=" uiLang ") ===")
@@ -1021,7 +1044,7 @@ ShowOnboarding(page := 1) {
 ; window was WritingTools' single most repeated user complaint, and testing
 ; showed people click a language and expect the world to change right there.
 ShowSettings() {
-    global scriptDir, uiLang, L, menuHotkey
+    global scriptDir, uiLang, L, menuHotkey, directHotkeys
     s := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool — " L["set_title"])
     hdr := BrandHeader(s, L["set_title"])
 
@@ -1033,6 +1056,12 @@ ShowSettings() {
 
     au := s.Add("Checkbox", "xm y+14" (IsAutostart() ? " Checked" : ""), L["set_autostart"])
     au.OnEvent("Click", (*) => (SetAutostart(au.Value), Notify(L["set_saved"])))
+
+    dh := s.Add("Checkbox", "xm y+8" (directHotkeys ? " Checked" : ""), L["set_direct"])
+    dh.OnEvent("Click", ToggleDirect)
+    s.SetFont("s9 c6F695D norm", "Segoe UI")
+    s.Add("Text", "xm y+2 w400", L["set_direct_note"])
+    s.SetFont("s10 c1A1B1D norm", "Segoe UI")
 
     ; Menu-hotkey picker: press the combo in the box — it applies on the spot.
     ; (The Win32 hotkey control can't represent Space, so the current binding
@@ -1062,6 +1091,14 @@ ShowSettings() {
     if (uiLang = "he")
         PlaceHeaderLTR(s, hdr)
     s.Show()
+
+    ToggleDirect(*) {
+        global directHotkeys
+        directHotkeys := dh.Value ? true : false
+        RegisterDirectHotkeys(directHotkeys)
+        try RunWait(BrainCmd() ' --set direct_hotkeys=' (directHotkeys ? "true" : "false"), scriptDir, "Hide")
+        Notify(L["set_saved"])
+    }
 
     ApplyPicked() {
         v := ""
