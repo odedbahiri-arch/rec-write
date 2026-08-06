@@ -61,11 +61,14 @@ jobs:
           Copy-Item dist\recwrite-brain.exe  pkg\REC-WriteTool\
           Copy-Item config.example.json      pkg\REC-WriteTool\config.json
           Copy-Item botan.ico, README.md, LICENSE, CHANGELOG.md pkg\REC-WriteTool\
+          Copy-Item "docs\quickstart-he.html" "pkg\REC-WriteTool\התחלה מהירה.html"
           Compress-Archive -Path pkg\REC-WriteTool -DestinationPath "REC-WriteTool-v$env:VERSION.zip"
+          # a stable-named copy so /releases/latest/download/REC-WriteTool.zip is a permanent link
+          Copy-Item "REC-WriteTool-v$env:VERSION.zip" "REC-WriteTool.zip"
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME "REC-WriteTool-v$env:VERSION.zip" `
+          gh release create $env:GITHUB_REF_NAME "REC-WriteTool-v$env:VERSION.zip" "REC-WriteTool.zip" `
             --title "REC — Write Tool $env:GITHUB_REF_NAME" --generate-notes

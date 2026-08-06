@@ -7,7 +7,7 @@ keyboard layouts alike, and the UI itself speaks both languages.
 
 ## Install (60 seconds)
 
-1. Download the latest release zip from the [Releases page](../../releases/latest) and unzip it to a **permanent folder** (e.g. `C:\Tools\REC-WriteTool` — not Downloads, or autostart will break if you tidy up later).
+1. Download the latest zip — permanent link: [REC-WriteTool.zip](../../releases/latest/download/REC-WriteTool.zip) — and unzip it to a **permanent folder** (e.g. `C:\REC-WriteTool` — not Downloads, or autostart will break if you tidy up later). Hebrew speakers: the zip includes «התחלה מהירה.html» with the whole walkthrough.
 2. Run `REC-WriteTool.exe`. Botan (the peanut 🥜) appears in your tray.
 3. A short setup wizard opens: it explains the hotkeys, then walks you through
    getting a **free Gemini API key** (button opens

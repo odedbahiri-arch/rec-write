@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.0 — 2026-08-06
+
+Friend-proof install release.
+
+- **Hebrew quick-start page in the zip** («התחלה מהירה.html») — 4 steps with the SmartScreen walkthrough and the hidden-tray-icon tip, branded, opens in any browser.
+- **Permanent download link**: every release now also uploads a stable-named `REC-WriteTool.zip`, so `releases/latest/download/REC-WriteTool.zip` always fetches the newest version — one link to share forever.
+- **Autostart offered in the wizard**: the "you're all set" page has a checked "Start with Windows" box — no Startup-folder instructions needed.
+
 ## v1.4.1 — 2026-08-06
 
 Design polish from Oded's review of v1.4.0:

@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.4.1"
+APP_VERSION := "1.5.0"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -1123,8 +1123,9 @@ ShowOnboarding(page := 1) {
         g.Add("Text", "xm y+14", "✓  " L["key_saved"])
         g.SetFont("s10 c1A1B1D norm", "Segoe UI")
         g.Add("Text", "xm y+10 w460", L["ob_done_try"])
+        au := g.Add("Checkbox", "xm y+14 Checked", L["set_autostart"])
         fn := g.Add("Button", "xm y+16 w160 Default", L["ob_finish"])
-        fn.OnEvent("Click", (*) => (g.Destroy(), g := ""))
+        fn.OnEvent("Click", (*) => (SetAutostart(au.Value), g.Destroy(), g := ""))
     }
     g.Show("AutoSize Hide")
     if (uiLang = "he")
