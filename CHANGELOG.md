@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.1 — 2026-08-06
+
+Design polish from Oded's review of v1.4.0:
+
+- Chip labels are bold ink everywhere (the tray cheat-sheet no longer grays them).
+- הגדרות and בדיקת עדכונים are plain footer links (no boxes); הגדרות carries a real gear icon (Segoe UI Symbol — ships with Windows, safe for all users).
+- שליחה matches the approved mockup: flat lime, no border ring, bold ink, same height as the field.
+
 ## v1.4.0 — 2026-08-06
 
 The popup gets its real design (option A of three mockups, refined with Oded).

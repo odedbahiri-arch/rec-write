@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.4.0"
+APP_VERSION := "1.4.1"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -399,7 +399,7 @@ ShowPopup(trayMode := false) {
     ; and the lime send button as the panel's single CTA.
     mirrored := (uiLang = "he")
     W := 416, M := 14, CW := 190, CH := 38
-    H := (trayMode ? 314 : 268)
+    H := (trayMode ? 302 : 268)
     p := Gui("-Caption +AlwaysOnTop +ToolWindow +Border" (mirrored ? " +E0x400000" : ""))
     popupGui := p
     p.BackColor := "FAF7EF"
@@ -441,13 +441,21 @@ ShowPopup(trayMode := false) {
     ; rounded chip = border layer + fill layer + label (+ ⧉ / hotkey hint)
     AddChip(cx, cy, w, h, label, hintTxt, isWin, enabled, cb, lime := false) {
         fill := lime ? "D4F534" : "FFFDF6"
-        bd := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx, cy, w, h, lime ? "B5C43E" : "D9D4C6"))
-        fl := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx + 1, cy + 1, w - 2, h - 2, fill))
-        RoundCtrl(bd, 8), RoundCtrl(fl, 7)
-        p.SetFont("s10 " (enabled ? "c1A1B1D" : "c9C968A") " bold", "Segoe UI")
+        parts := []
+        if lime {
+            ; the CTA is flat lime, no border ring (per the signed-off mockup)
+            fl := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx, cy, w, h, fill))
+            RoundCtrl(fl, 7)
+        } else {
+            bd := p.Add("Text", Format("x{} y{} w{} h{} BackgroundD9D4C6", cx, cy, w, h))
+            fl := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx + 1, cy + 1, w - 2, h - 2, fill))
+            RoundCtrl(bd, 8), RoundCtrl(fl, 7)
+            parts.Push(bd)
+        }
+        p.SetFont("s10 c1A1B1D bold", "Segoe UI")   ; labels are always bold ink
         ly := cy + Max(4, (h - 22) // 2 + 1)
         lb := p.Add("Text", Format("x{} y{} Background{}", cx + 12, ly, fill), label)
-        parts := [bd, fl, lb]
+        parts.Push(fl), parts.Push(lb)
         if lime {
             lb.GetPos(, , &lw)
             lb.Move(cx + (w - lw) // 2)
@@ -473,9 +481,9 @@ ShowPopup(trayMode := false) {
     }
 
     p.SetFont("s10 c1A1B1D norm", "Segoe UI")
-    ci := p.Add("Edit", Format("x{} y44 w{} h26 BackgroundFFFDF6", M, W - M * 2 - 76 - 8))
+    ci := p.Add("Edit", Format("x{} y44 w{} h28 BackgroundFFFDF6", M, W - M * 2 - 76 - 8))
     SetCue(ci, L["p_cue"])
-    AddChip(W - M - 76, 44, 76, 26, L["p_send"], "", false, !trayMode, SendCustom, true)
+    AddChip(W - M - 76, 44, 76, 28, L["p_send"], "", false, !trayMode, SendCustom, true)
     if trayMode
         ci.Enabled := false
 
@@ -489,9 +497,20 @@ ShowPopup(trayMode := false) {
             InStr(windowActions, "," k ",") != 0, !trayMode, RunPick.Bind(k))
     }
     if trayMode {
-        cy := 78 + 4 * 46
-        AddChip(M, cy, CW, CH, L["set_title"], "", false, true, (*) => (ClosePopup(), ShowSettings()))
-        AddChip(M + CW + 8, cy, CW, CH, L["tray_update"], "", false, true, (*) => (ClosePopup(), CheckUpdates()))
+        ; footer links — no boxes: הגדרות (with a real gear) and updates
+        fy := 78 + 4 * 46 + 6
+        p.SetFont("s10 c1A1B1D bold", "Segoe UI")
+        stL := p.Add("Text", Format("x{} y{}", M + 10, fy), L["set_title"])
+        p.SetFont("s10 c57534A norm", "Segoe UI Symbol")
+        stG := p.Add("Text", "x+5 yp", "⚙")
+        p.SetFont("s10 c1A1B1D bold", "Segoe UI")
+        upL := p.Add("Text", Format("x{} y{}", 240, fy), L["tray_update"])
+        upL.GetPos(, , &upw)
+        upL.Move(W - M - 10 - upw)
+        p.SetFont("s10 c1A1B1D norm", "Segoe UI")
+        stL.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
+        stG.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
+        upL.OnEvent("Click", (*) => (ClosePopup(), CheckUpdates()))
     }
 
     ; Enter in the field submits the custom instruction (hidden default button)
