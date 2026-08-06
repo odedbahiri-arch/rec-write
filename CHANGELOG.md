@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.0 — 2026-08-06
+
+The popup gets its real design (option A of three mockups, refined with Oded).
+
+- **Branded panel**: red hairline on top; the English lockup always sits visual-LEFT with the red dot before "REC", character count + ⚙ always visual-RIGHT — in both UI languages; the rest of the panel follows the language's RTL/LTR.
+- **Rounded chips** instead of stock buttons: bold action label + the hotkey in parentheses in a faded tone (so the popup teaches the shortcuts); ⧉ window-marker in brand olive; cream `#FFFDF6` fills instead of pure white.
+- **Lime send button** — the panel's single CTA, RecStudio lime with ink text.
+- Hotkey hints hide automatically when direct hotkeys are switched off.
+
 ## v1.3.1 — 2026-08-05
 
 - **Direct hotkeys can be switched off** (Settings → "קיצורים ישירים") for apps that bind their own Ctrl+Alt shortcuts (e.g. the new Notepad's formatting keys). The menu hotkey keeps every action reachable; the toggle applies instantly.

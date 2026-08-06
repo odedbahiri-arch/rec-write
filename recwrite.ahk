@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.3.1"
+APP_VERSION := "1.4.0"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -91,6 +91,7 @@ SetLang(lang) {
         "p_cue", "Describe any change… (then Enter)",
         "p_chars", "chars selected",
         "p_hint", "select text, then Ctrl+Alt+Space",
+        "p_send", "Send",
         "tray_menu", "Menu",
         "followup_label", "Ask a follow-up (Enter to send):",
         "btn_ask", "Ask", "btn_copy_answer", "Copy answer",
@@ -186,6 +187,7 @@ SetLang(lang) {
         "p_cue", "מה לעשות בטקסט? כותבים כאן ולוחצים Enter",
         "p_chars", "תווים מסומנים",
         "p_hint", "מסמנים טקסט ואז Ctrl+Alt+Space",
+        "p_send", "שליחה",
         "tray_menu", "תפריט",
         "followup_label", "שאלת המשך (Enter לשליחה):",
         "btn_ask", "שליחה", "btn_copy_answer", "העתקת התשובה",
@@ -368,7 +370,7 @@ RunAction(action, *) {
 ; trayMode (double-click on Botan): same panel with no captured text — actions
 ; are shown as a cheat-sheet (disabled) and Settings/Updates become buttons.
 ShowPopup(trayMode := false) {
-    global busy, popupText, popupSrc, popupSaved, popupPicked, popupGui, uiLang, L, windowActions
+    global busy, popupText, popupSrc, popupSaved, popupPicked, popupGui, uiLang, L, windowActions, directHotkeys
     if trayMode {
         popupText := "", popupSaved := "", popupSrc := 0
         popupPicked := true               ; nothing to restore on dismiss
@@ -391,55 +393,123 @@ ShowPopup(trayMode := false) {
         popupPicked := false
     }
 
-    ; A small branded button window at the cursor (the WritingTools shape):
-    ; a free-text "describe any change" field up top, the actions as buttons.
-    p := Gui("-Caption +AlwaysOnTop +ToolWindow +Border" (uiLang = "he" ? " +E0x400000" : ""))
+    ; The branded action panel (design signed off 2026-08-06): red hairline,
+    ; English lockup ALWAYS visual-left with the dot before REC, count + gear
+    ; visual-right, rounded cream chips with a bold label + faded hotkey hint,
+    ; and the lime send button as the panel's single CTA.
+    mirrored := (uiLang = "he")
+    W := 416, M := 14, CW := 190, CH := 38
+    H := (trayMode ? 314 : 268)
+    p := Gui("-Caption +AlwaysOnTop +ToolWindow +Border" (mirrored ? " +E0x400000" : ""))
     popupGui := p
     p.BackColor := "FAF7EF"
+    p.Add("Text", "x0 y0 w" W " h3 BackgroundEF4444")
+
+    ; a run of controls placed at explicit VISUAL coordinates (logical flips in
+    ; mirrored windows), so the header reads the same in both languages
+    PlaceRunL(parts, vx) {
+        ; NB: out-var must not be named "w"/"h" — AHK is case-insensitive and a
+        ; free variable in a nested func captures the OUTER W (panel width).
+        for c in parts {
+            c.GetPos(, , &runW)
+            c.Move(mirrored ? W - vx - runW : vx)
+            vx += runW + 8
+        }
+    }
+    PlaceRunR(parts, rm) {
+        tw := 0
+        for c in parts {
+            c.GetPos(, , &runW)
+            tw += runW + 8
+        }
+        PlaceRunL(parts, W - rm - (tw - 8))
+    }
+
     p.SetFont("s12 cEF4444", "Segoe UI")
-    phdr := [p.Add("Text", "x12 y10", "●")]
-    p.SetFont("s9 c1A1B1D bold", "Segoe UI")
-    phdr.Push(p.Add("Text", "x+6 yp+4", "REC — Write Tool"))
+    dot := p.Add("Text", "x16 y12", "●")
+    p.SetFont("s10 c1A1B1D bold", "Segoe UI")
+    brand := p.Add("Text", "x+7 yp+2", "REC — Write Tool")
     p.SetFont("s9 c6F695D norm", "Segoe UI")
-    phdr.Push(p.Add("Text", "x+10 yp", trayMode ? L["p_hint"] : StrLen(popupText) " " L["p_chars"]))
-    p.SetFont("s11 c57534A norm", "Segoe UI")
-    gear := p.Add("Text", "x+12 yp-2", "⚙")
-    phdr.Push(gear)
-    gear.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
+    cnt := p.Add("Text", "x+10 yp+1", trayMode ? L["p_hint"] : StrLen(popupText) " " L["p_chars"])
+    p.SetFont("s11 c57534A norm", "Segoe UI Symbol")   ; plain Segoe UI draws ⚙ as tofu
+    gear := p.Add("Text", "x+8 yp-3", "⚙")
     p.SetFont("s10 c1A1B1D norm", "Segoe UI")
-    ci := p.Add("Edit", "xm y+10 w306 BackgroundFFFFFF")
+    gear.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
+    PlaceRunL([dot, brand], 16)
+    PlaceRunR([cnt, gear], 14)
+
+    ; rounded chip = border layer + fill layer + label (+ ⧉ / hotkey hint)
+    AddChip(cx, cy, w, h, label, hintTxt, isWin, enabled, cb, lime := false) {
+        fill := lime ? "D4F534" : "FFFDF6"
+        bd := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx, cy, w, h, lime ? "B5C43E" : "D9D4C6"))
+        fl := p.Add("Text", Format("x{} y{} w{} h{} Background{}", cx + 1, cy + 1, w - 2, h - 2, fill))
+        RoundCtrl(bd, 8), RoundCtrl(fl, 7)
+        p.SetFont("s10 " (enabled ? "c1A1B1D" : "c9C968A") " bold", "Segoe UI")
+        ly := cy + Max(4, (h - 22) // 2 + 1)
+        lb := p.Add("Text", Format("x{} y{} Background{}", cx + 12, ly, fill), label)
+        parts := [bd, fl, lb]
+        if lime {
+            lb.GetPos(, , &lw)
+            lb.Move(cx + (w - lw) // 2)
+        }
+        if isWin {
+            ; tiny on purpose — at label size it pushes long Hebrew labels
+            ; (נקודות עיקריות) into a second line
+            p.SetFont("s7 c4F5D00 norm", "Segoe UI")
+            parts.Push(p.Add("Text", "x+3 yp+5 Background" fill, "⧉"))
+        }
+        if (hintTxt != "") {
+            p.SetFont("s8 cA89F8E norm", "Segoe UI")
+            ht := p.Add("Text", Format("x{} y{} Background{}", cx + 12, cy + (h - 14) // 2, fill), "(" hintTxt ")")
+            ht.GetPos(, , &hw)
+            ht.Move(cx + w - 10 - hw)
+            parts.Push(ht)
+        }
+        p.SetFont("s10 c1A1B1D norm", "Segoe UI")
+        if enabled {
+            for c in parts
+                c.OnEvent("Click", cb)
+        }
+    }
+
+    p.SetFont("s10 c1A1B1D norm", "Segoe UI")
+    ci := p.Add("Edit", Format("x{} y44 w{} h26 BackgroundFFFDF6", M, W - M * 2 - 76 - 8))
     SetCue(ci, L["p_cue"])
-    go := p.Add("Button", "x+6 w66 Default", L["btn_ask"])
+    AddChip(W - M - 76, 44, 76, 26, L["p_send"], "", false, !trayMode, SendCustom, true)
+    if trayMode
+        ci.Enabled := false
+
     keys := ["proofread", "rewrite", "friendly", "professional", "concise", "summary", "keypoints", "table"]
+    hintKey := Map("proofread", "J", "rewrite", "R", "friendly", "F", "professional", "P",
+        "concise", "C", "summary", "S", "keypoints", "K", "table", "T")
     for i, k in keys {
-        opt := (Mod(i, 2) = 1 ? "xm y+8" : "x+8 yp") " w185 h32"
-        b := p.Add("Button", opt, ActLabel(k) (InStr(windowActions, "," k ",") ? "  ⧉" : ""))
-        b.OnEvent("Click", RunPick.Bind(k))
-        if trayMode
-            b.Enabled := false
+        cx := M + Mod(i - 1, 2) * (CW + 8), cy := 78 + ((i - 1) // 2) * 46
+        AddChip(cx, cy, CW, CH, ActLabel(k),
+            (directHotkeys ? "Ctrl+Alt+" hintKey[k] : ""),
+            InStr(windowActions, "," k ",") != 0, !trayMode, RunPick.Bind(k))
     }
-    go.OnEvent("Click", SendCustom)
     if trayMode {
-        ci.Enabled := false, go.Enabled := false
-        st := p.Add("Button", "xm y+12 w185 h32", "⚙  " L["set_title"])
-        up := p.Add("Button", "x+8 w185 h32", L["tray_update"])
-        st.OnEvent("Click", (*) => (ClosePopup(), ShowSettings()))
-        up.OnEvent("Click", (*) => (ClosePopup(), CheckUpdates()))
+        cy := 78 + 4 * 46
+        AddChip(M, cy, CW, CH, L["set_title"], "", false, true, (*) => (ClosePopup(), ShowSettings()))
+        AddChip(M + CW + 8, cy, CW, CH, L["tray_update"], "", false, true, (*) => (ClosePopup(), CheckUpdates()))
     }
+
+    ; Enter in the field submits the custom instruction (hidden default button)
+    hb := p.Add("Button", "x-20 y-20 w1 h1 Default", "")
+    hb.OnEvent("Click", SendCustom)
     p.OnEvent("Escape", (*) => ClosePopup())
     p.OnEvent("Close", (*) => ClosePopup())
 
     ; show at the cursor, clamped to the work area of the monitor it's on
     CoordMode("Mouse", "Screen")
     MouseGetPos(&mx, &my)
-    p.Show("AutoSize Hide")
-    if (uiLang = "he")
-        PlaceHeaderLTR(p, phdr)
+    p.Show(Format("w{} h{} Hide", W, H))
     p.GetPos(, , &pw, &ph)
     WorkAreaAt(mx, my, &wl, &wt, &wr, &wb)
     x := Max(wl + 8, Min(mx, wr - pw - 8)), y := Max(wt + 8, Min(my, wb - ph - 8))
     p.Show("x" x " y" y)
-    ci.Focus()
+    if !trayMode
+        ci.Focus()
 
     RunPick(action, *) {
         popupPicked := true
@@ -510,6 +580,13 @@ DoPopupAction(action, instr) {
 ; Gray hint text inside an empty Edit control (EM_SETCUEBANNER).
 SetCue(ctrl, text) {
     DllCall("SendMessage", "ptr", ctrl.Hwnd, "uint", 0x1501, "ptr", 1, "wstr", text)
+}
+
+; Clip a control to a rounded rectangle (the poor man's border-radius).
+RoundCtrl(ctrl, r := 7) {
+    ctrl.GetPos(, , &w, &h)
+    rgn := DllCall("CreateRoundRectRgn", "int", 0, "int", 0, "int", w + 1, "int", h + 1, "int", r, "int", r, "ptr")
+    DllCall("SetWindowRgn", "ptr", ctrl.Hwnd, "ptr", rgn, "int", true)
 }
 
 ; Work area of the monitor containing the point (multi-monitor safe).
