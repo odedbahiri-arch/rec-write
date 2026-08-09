@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.5.0"
+APP_VERSION := "1.5.1"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -530,33 +530,50 @@ ShowPopup(trayMode := false) {
     if !trayMode
         ci.Focus()
 
+    ; Tearing the panel down from INSIDE one of its own control click handlers
+    ; corrupts AHK's event dispatch (the handler returns into a freed control and
+    ; the process dies with "Invalid memory read/write"). So: drop the global
+    ; handle first, hide for instant feedback, and destroy on a fresh thread.
+    DismissPanel() {
+        g := p
+        popupGui := ""
+        try g.Hide()
+        SetTimer(() => g.Destroy(), -1)
+    }
     RunPick(action, *) {
         popupPicked := true
-        p.Destroy(), popupGui := ""
-        DoPopupAction(action, "")
+        DismissPanel()
+        SetTimer(() => DoPopupAction(action, ""), -1)   ; off the Gui event thread
     }
     SendCustom(*) {
         q := Trim(ci.Value)
         if (q = "")
             return
         popupPicked := true
-        p.Destroy(), popupGui := ""
-        DoPopupAction("custom", q)
+        DismissPanel()
+        SetTimer(() => DoPopupAction("custom", q), -1)
     }
     ClosePopup() {
-        try p.Destroy()
-        popupGui := ""
+        DismissPanel()
         if !popupPicked
             PopupCleanup()
     }
 }
 
 ; Clicking anywhere else must dismiss the popup (and give the clipboard back).
+; This runs inside an OnMessage callback, where an uncaught error takes the whole
+; script down — so the body is defensive end to end, the handle is cleared before
+; the teardown, and the Destroy happens on a fresh thread (same reason as
+; DismissPanel above: never free a window from inside its own message handler).
 PopupDeactivate(wParam, lParam, msg, hwnd) {
     global popupGui, popupPicked
-    if (popupGui != "" && wParam = 0 && hwnd = popupGui.Hwnd) {
-        try popupGui.Destroy()
+    try {
+        if (popupGui = "" || wParam != 0 || hwnd != popupGui.Hwnd)
+            return
+        g := popupGui
         popupGui := ""
+        try g.Hide()
+        SetTimer(() => g.Destroy(), -1)
         if !popupPicked
             PopupCleanup()
     }
@@ -576,7 +593,10 @@ PopupCleanup() {
 
 ; Run the picked action against the captured selection, restoring focus to the
 ; source window first (unless the result opens in a window anyway).
-DoPopupAction(action, instr) {
+; NB: the instruction parameter must NOT be called `instr` — AHK identifiers are
+; case-insensitive, so that name shadows the built-in InStr() for this whole
+; function and every InStr(...) call here dies with "String has no method Call".
+DoPopupAction(action, instruction) {
     global popupText, popupSrc, popupSaved, busy, windowActions
     Log("popup pick: " action)
     try {
@@ -584,10 +604,12 @@ DoPopupAction(action, instr) {
             WinActivate("ahk_id " popupSrc)
             WinWaitActive("ahk_id " popupSrc, , 1)
         }
-        keep := Handle(action, popupText, instr, popupSaved, popupSrc)
+        keep := Handle(action, popupText, instruction, popupSaved, popupSrc)
     } catch as e {
         Notify(ActLabel(action) " — " e.Message)
-        Log("popup " action " -> EXCEPTION: " e.Message)
+        ; one line per entry — a raw e.Stack is multi-line and breaks the log
+        Log("popup " action " -> EXCEPTION: " e.Message " | what=" e.What " | line=" e.Line
+            " | stack=" Trim(StrReplace(StrReplace(e.Stack, "`r", ""), "`n", " » ")))
     } finally {
         if !IsSet(keep) || !keep
             A_Clipboard := popupSaved

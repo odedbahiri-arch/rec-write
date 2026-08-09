@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.5.1 — 2026-08-10
+
+Fixes the crash that made the popup's action chips unusable.
+
+- **Clicking an action in the `Ctrl+Alt+Space` popup works again.** Every chip died with `This value of type "String" has no method named "Call"` and took the tray icon down with it. Cause: the handler's parameter was named `instr`, and because AutoHotkey identifiers are case-insensitive that name shadowed the built-in `InStr()` for the whole function — so the window-action lookup was calling a string. Renamed to `instruction`. (The direct `Ctrl+Alt+<key>` hotkeys were never affected.)
+- **The popup no longer tears itself down from inside its own click handler.** It hid and destroyed the panel while still inside the control's event, then ran the model call for seconds on the freed window — which killed the process with "Invalid memory read/write" often enough to look random. The panel now hides immediately and is destroyed on a fresh thread, with the action dispatched off the event thread too.
+- **Losing focus can't take the script down.** `PopupDeactivate` runs inside an `OnMessage` callback, where an uncaught error is fatal, so its body is now defensive throughout and clears the window handle before teardown.
+- Popup exceptions log `what` and `line` alongside the message, so the next one names itself instead of needing a repro.
+
 ## v1.5.0 — 2026-08-06
 
 Friend-proof install release.
