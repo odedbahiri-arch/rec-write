@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.2 — 2026-08-11
+
+- **The tool can no longer wedge itself.** A single `busy` flag gates every hotkey; it was raised in two places and lowered in four, so any action that died without lowering it left every hotkey silently doing nothing until the app was restarted — indistinguishable, from the outside, from "the tool broke". It had happened for real (2026-07-28). Every write now goes through one `MarkBusy()` that stamps a clock, and a 5-second watchdog releases anything held past 90s, restoring the saved clipboard and saying so. A popup you leave open on screen is left alone — the watchdog only steps in once its window is gone.
+
 ## v1.5.1 — 2026-08-10
 
 Fixes the crash that made the popup's action chips unusable.

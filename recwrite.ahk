@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.5.1"
+APP_VERSION := "1.5.2"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -47,6 +47,10 @@ tmpInstr  := A_Temp "\recwrite_instr.txt"
 tmpChat   := A_Temp "\recwrite_chat.txt"
 settleMs  := 300
 busy      := false
+busyAt    := 0            ; A_TickCount when `busy` was raised — see BusyWatchdog
+; Generous on purpose: the brain's own timeout is `timeout_seconds` (30) and the
+; fallback model can double that, so nothing legitimate lives past ~60s.
+BUSY_TIMEOUT := 90000
 popupGui  := ""
 OnMessage(0x0006, PopupDeactivate)   ; WM_ACTIVATE — dismiss the popup on focus loss
 ; Which actions open a result window instead of pasting is owned by config.json
@@ -112,6 +116,7 @@ SetLang(lang) {
         "resumed", "Hotkeys back on",
         "working", "REC — working…",
         "still_working", "Still working on the previous one…",
+        "unstuck", "That one got stuck — REC is ready again",
         "copied_fallback", "The window changed — the result is on your clipboard, paste with Ctrl+V",
         "nokey", "No API key set — opening setup",
         "offline", "no internet connection — check the network and try again",
@@ -208,6 +213,7 @@ SetLang(lang) {
         "resumed", "הקיצורים פועלים שוב",
         "working", "REC — חושב…",
         "still_working", "עדיין עובד על הפעולה הקודמת…",
+        "unstuck", "הפעולה הקודמת נתקעה — REC מוכן שוב",
         "copied_fallback", "החלון התחלף — התוצאה הועתקה, אפשר להדביק עם Ctrl+V",
         "nokey", "לא מוגדר מפתח — פותח את ההגדרה",
         "offline", "אין חיבור לאינטרנט — כדאי לבדוק את הרשת ולנסות שוב",
@@ -339,7 +345,7 @@ RunAction(action, *) {
         Notify(L["still_working"])
         return
     }
-    busy := true
+    MarkBusy(true)
     ReleaseMods()
     saved := ClipboardAll()
     src := WinExist("A")                 ; remember where the text came from
@@ -358,7 +364,7 @@ RunAction(action, *) {
         if !IsSet(keep) || !keep
             A_Clipboard := saved
         saved := ""
-        busy := false
+        MarkBusy(false)
     }
 }
 
@@ -377,7 +383,7 @@ ShowPopup(trayMode := false) {
     } else {
         if busy
             return
-        busy := true                      ; direct hotkeys must not fight the popup for the clipboard
+        MarkBusy(true)                    ; direct hotkeys must not fight the popup for the clipboard
         ReleaseMods()
         popupSaved := ClipboardAll()
         popupSrc := WinExist("A")        ; remember the source window
@@ -385,7 +391,7 @@ ShowPopup(trayMode := false) {
         if (popupText = "") {
             A_Clipboard := popupSaved
             popupSaved := ""
-            busy := false
+            MarkBusy(false)
             Notify(L["popup_no_sel"])
             return
         }
@@ -579,6 +585,42 @@ PopupDeactivate(wParam, lParam, msg, hwnd) {
     }
 }
 
+; ---- the stuck-busy watchdog ------------------------------------------------
+; `busy` gates every hotkey, and it is raised in two places but lowered in four.
+; If any action ever dies without lowering it, EVERY hotkey silently stops
+; working until the app is restarted — which to a non-technical user is
+; indistinguishable from "the tool broke". It has happened for real (2026-07-28:
+; eight `HOTKEY summary (ignored: busy)` in one second, cured only by a restart),
+; and nothing else in the script can recover from it. So every write goes through
+; MarkBusy() to stamp the clock, and this timer is the net.
+MarkBusy(on) {
+    global busy, busyAt
+    busy   := on
+    busyAt := on ? A_TickCount : 0
+}
+BusyWatchdog() {
+    global busy, busyAt, popupGui, popupSaved, popupText, popupPicked, BUSY_TIMEOUT, L
+    if (!busy || !busyAt || A_TickCount - busyAt < BUSY_TIMEOUT)
+        return
+    ; a popup still on screen is legitimately holding `busy` — the user is just
+    ; taking their time. Only step in once its window is actually gone.
+    if (popupGui != "") {
+        try {
+            if WinExist("ahk_id " popupGui.Hwnd)
+                return
+        }
+        popupGui := ""                     ; handle outlived its window
+    }
+    Log("watchdog: busy stuck for " Round((A_TickCount - busyAt) / 1000) "s — releasing")
+    try {
+        if (popupSaved != "")
+            A_Clipboard := popupSaved      ; never strand the user's clipboard
+    }
+    popupSaved := "", popupText := "", popupPicked := true
+    MarkBusy(false)
+    Notify(L["unstuck"])
+}
+
 PopupCleanup() {
     global popupPicked, popupSaved, popupText, busy
     if popupPicked
@@ -588,7 +630,7 @@ PopupCleanup() {
         popupSaved := ""
     }
     popupText := ""
-    busy := false
+    MarkBusy(false)
 }
 
 ; Run the picked action against the captured selection, restoring focus to the
@@ -614,7 +656,7 @@ DoPopupAction(action, instruction) {
         if !IsSet(keep) || !keep
             A_Clipboard := popupSaved
         popupSaved := "", popupText := ""
-        busy := false
+        MarkBusy(false)
     }
 }
 
@@ -1043,6 +1085,7 @@ LoadSettings()   ; must run before BuildTray — it decides the UI language + ho
 RegisterMenuHotkey(menuHotkey)
 RegisterDirectHotkeys(directHotkeys)
 BuildTray()
+SetTimer(BusyWatchdog, 5000)   ; the only thing that can un-wedge a stuck `busy`
 CheckApiKey()    ; first run: no key yet → branded setup dialog
 Log("=== RecWrite started (popup + 8 direct hotkeys, ui=" uiLang ") ===")
 TrayTip(L["start_title"], L["start_tip"], 1)
