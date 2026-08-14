@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.5.2"
+APP_VERSION := "1.5.3"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -41,10 +41,45 @@ FindPython() {
     return "pythonw.exe"   ; last resort: PATH (RunWait throws if absent — call sites guard)
 }
 logFile   := scriptDir "\recwrite.log"
-tmpIn     := A_Temp "\recwrite_in.txt"
-tmpOut    := A_Temp "\recwrite_out.txt"
-tmpInstr  := A_Temp "\recwrite_instr.txt"
-tmpChat   := A_Temp "\recwrite_chat.txt"
+; Every brain call gets its OWN temp files. They used to be four fixed paths
+; shared by every call, and a follow-up chat never raises `busy` — so an action
+; fired while a follow-up was still running wrote and then deleted the same
+; recwrite_out.txt. Whichever finished first destroyed the other's answer: the
+; chat came back "success, 0 characters" and the user's question was silently
+; rolled back even though the model had answered fine.
+tmpSeq := 0
+TmpPath(kind) {
+    global tmpSeq
+    tmpSeq += 1
+    return Format("{1}\recwrite_{2}_{3}_{4}_{5}.txt", A_Temp, kind,
+        DllCall("GetCurrentProcessId", "uint"), A_TickCount, tmpSeq)
+}
+; A call that is killed mid-flight can't delete its own file, and those files
+; hold the user's selected text — so sweep leftovers at startup.
+;
+; AGE-GUARDED on purpose, and the guard is load-bearing. This glob is shared
+; with every sibling instance — `#SingleInstance Force` matches on script path,
+; so a second install, or a dev copy living somewhere else, runs alongside this
+; one — and NOTHING holds these files open between AHK writing them and the
+; brain reading them. A blind wildcard delete here would therefore rip the input
+; file out from under a sibling's in-flight call and make that call fail. A live
+; call lives seconds (the brain times out at 30s, BusyWatchdog releases at 90s),
+; so an hour is ~40x the worst case and cannot catch a running call.
+; The PID check, NOT the clock, is what makes this safe. Both values in a
+; DateDiff are local wall-clock, so a DST shift or an NTP correction can make a
+; seconds-old file look an hour old — but it cannot make a running process
+; disappear. Age is only the second opinion, for files whose owner is gone.
+; Files from <= v1.5.2 carry no PID in their name and fall through to age alone.
+SweepTempFiles() {
+    loop files, A_Temp "\recwrite_*.txt" {
+        try {
+            alive := RegExMatch(A_LoopFileName, "^recwrite_[a-z]+_(\d+)_", &m)
+                     && ProcessExist(Integer(m[1]))
+            if (!alive && DateDiff(A_Now, FileGetTime(A_LoopFilePath, "M"), "Minutes") >= 60)
+                FileDelete(A_LoopFilePath)
+        }
+    }
+}
 settleMs  := 300
 busy      := false
 busyAt    := 0            ; A_TickCount when `busy` was raised — see BusyWatchdog
@@ -378,7 +413,15 @@ RunAction(action, *) {
 ShowPopup(trayMode := false) {
     global busy, popupText, popupSrc, popupSaved, popupPicked, popupGui, uiLang, L, windowActions, directHotkeys
     if trayMode {
-        popupText := "", popupSaved := "", popupSrc := 0
+        ; The tray panel is a cheat-sheet: it captures nothing and restores
+        ; nothing, so `popupPicked` is all it actually needs. Clearing the rest
+        ; used to blank popupSaved OUT FROM UNDER a still-running action, whose
+        ; cleanup then handed that empty value back — double-clicking Botan
+        ; while REC was working wiped the user's clipboard. Only tidy up stale
+        ; state when nothing is in flight.
+        if !busy {
+            popupText := "", popupSaved := "", popupSrc := 0
+        }
         popupPicked := true               ; nothing to restore on dismiss
     } else {
         if busy
@@ -752,13 +795,14 @@ Handle(action, text, instruction, saved, srcWin := 0) {
 }
 
 CallBrain(action, text, instruction) {
-    global scriptDir, tmpIn, tmpOut, tmpInstr
-    try FileDelete(tmpOut)
+    global scriptDir
+    tmpIn := TmpPath("in"), tmpOut := TmpPath("out"), tmpInstr := ""
     fin := FileOpen(tmpIn, "w", "UTF-8-RAW")
     fin.Write(text)
     fin.Close()
     args := action ' --infile "' tmpIn '" --outfile "' tmpOut '"'
     if (instruction != "") {
+        tmpInstr := TmpPath("instr")
         fi := FileOpen(tmpInstr, "w", "UTF-8-RAW")
         fi.Write(instruction)
         fi.Close()
@@ -776,7 +820,8 @@ CallBrain(action, text, instruction) {
         ; the temp files hold the user's selected text — never leave them behind
         try FileDelete(tmpIn)
         try FileDelete(tmpOut)
-        try FileDelete(tmpInstr)
+        if (tmpInstr != "")
+            try FileDelete(tmpInstr)
     }
     return {code: code, text: out}
 }
@@ -785,8 +830,8 @@ CallBrain(action, text, instruction) {
 ; paste settle delay). Keeps config.json the single source of truth; falls back
 ; to the built-in defaults if python isn't reachable — and never dies trying.
 LoadSettings() {
-    global scriptDir, tmpOut, windowActions, settleMs, menuHotkey, directHotkeys
-    try FileDelete(tmpOut)
+    global scriptDir, windowActions, settleMs, menuHotkey, directHotkeys
+    tmpOut := TmpPath("settings")
     code := -1
     try code := RunWait(BrainCmd() ' --ahk-settings --outfile "' tmpOut '"', scriptDir, "Hide")
     catch as e
@@ -820,18 +865,25 @@ LoadSettings() {
 ; "<<<RECWRITE:user>>>" line (e.g. someone summarizing this tool's own docs)
 ; cannot forge a turn boundary and scramble the conversation.
 CallChat(roles, texts) {
-    global scriptDir, tmpChat, tmpOut
-    try FileDelete(tmpOut)
+    global scriptDir
+    tmpChat := TmpPath("chat"), tmpOut := TmpPath("out")
     token := A_TickCount . Random(100000, 999999)
-    fc := FileOpen(tmpChat, "w", "UTF-8-RAW")
-    loop roles.Length
-        fc.Write("<<<RECWRITE:" token ":" roles[A_Index] ">>>`n" texts[A_Index] "`n")
-    fc.Close()
-    out := ""
+    out := "", code := -1
     try {
+        fc := FileOpen(tmpChat, "w", "UTF-8-RAW")
+        loop roles.Length
+            fc.Write("<<<RECWRITE:" token ":" roles[A_Index] ">>>`n" texts[A_Index] "`n")
+        fc.Close()
         code := RunWait(BrainCmd() ' --chatfile "' tmpChat '" --chatmark ' token ' --outfile "' tmpOut '"', scriptDir, "Hide")
         if ((code = 0 || code = 5) && FileExist(tmpOut))
             out := FileRead(tmpOut, "UTF-8")
+    } catch as e {
+        ; Without this the follow-up path threw a RAW AutoHotkey error dialog at
+        ; the user — full command line, temp paths and an ExitApp button — while
+        ; the identical failure on the paste path (CallBrain) was already handled
+        ; as a friendly "error (see recwrite.log)".
+        Log("CallChat failed: " e.Message " (cmd: " BrainCmd() ")")
+        code := 1
     } finally {
         try FileDelete(tmpChat)
         try FileDelete(tmpOut)
@@ -881,9 +933,19 @@ ShowResultWindow(action, srcText, resultText) {
     ask.OnEvent("Click", AskFn)
     bc.OnEvent("Click", (*) => (A_Clipboard := LastAnswer(), Notify(L["copied_answer"])))
     ba.OnEvent("Click", (*) => (A_Clipboard := AsMarkdown(), Notify(L["copied_all"])))
-    bx.OnEvent("Click", (*) => rw.Destroy())
-    rw.OnEvent("Escape", (*) => rw.Destroy())
-    rw.OnEvent("Close", (*) => rw.Destroy())   ; title-bar X must destroy, not hide (leak otherwise)
+    ; A follow-up takes 10-30s and RunWait stays interruptible, so the user can
+    ; (and does) close this window while an answer is still on its way. Every
+    ; teardown goes through CloseWin so AskFn can tell that its controls are
+    ; gone before it touches them — otherwise it resumes into a destroyed
+    ; window and AutoHotkey throws a raw error dialog in the user's face.
+    closed := false
+    CloseWin() {
+        closed := true
+        try rw.Destroy()
+    }
+    bx.OnEvent("Click", (*) => CloseWin())
+    rw.OnEvent("Escape", (*) => CloseWin())
+    rw.OnEvent("Close", (*) => CloseWin())   ; title-bar X must destroy, not hide (leak otherwise)
     rw.Show("AutoSize Hide")
     if mirrored {
         PlaceHeaderLTR(rw, hdr)
@@ -917,11 +979,21 @@ ShowResultWindow(action, srcText, resultText) {
         ask.Enabled := false, ask.Text := "…"
         Log("chat follow-up (" StrLen(q) " chars, turn " roles.Length ")")
         r := CallChat(roles, texts)
+        if closed {
+            ; the user shut the window while we were waiting — the answer has
+            ; nowhere to go, and every control below is already destroyed
+            Log("chat follow-up discarded — window closed while waiting")
+            return
+        }
         ask.Enabled := true, ask.Text := L["btn_ask"]
         if (r.code != 0 && r.code != 5) || (r.text = "") {
             roles.Pop(), texts.Pop()      ; drop the unanswered question
             Render()
-            inp.Value := q                 ; hand the question back, don't lose it
+            ; Hand the question back — but only into an EMPTY box. A follow-up
+            ; takes 10-30s and people keep typing while they wait; force-setting
+            ; this erased whatever they had written next.
+            if (inp.Value = "")
+                inp.Value := q
             Notify(L["fu"] " — " (r.code = 4 ? L["rate"] : r.code = 3 ? L["blocked"] : L["error"]))
             return
         }
@@ -1081,6 +1153,7 @@ if (!FileExist(brainExe) && !FileExist(pythonExe)) {
     }
 }
 
+SweepTempFiles()  ; clear any temp files a killed call left behind (they hold user text)
 LoadSettings()   ; must run before BuildTray — it decides the UI language + hotkeys
 RegisterMenuHotkey(menuHotkey)
 RegisterDirectHotkeys(directHotkeys)
@@ -1142,14 +1215,35 @@ PlaceHeaderLTR(g, parts) {
 
 ShowOnboarding(page := 1) {
     global scriptDir, uiLang, L
-    static g := ""
+    static g := "", wizLive := ""
+    ; Replacing a live wizard has to MARK THE OLD ONE CLOSED, not merely destroy
+    ; it. "closed" below is per-invocation, so a previous TestAndSave sitting in
+    ; RunWait can only be told through the object it captured. Without this,
+    ; Settings → "Change key…" during a running test destroys that window and
+    ; the old test then resumes into its dead controls — the exact raw dialog
+    ; CloseWiz exists to prevent.
     if (g != "") {
+        if IsObject(wizLive)
+            wizLive.closed := true
         try g.Destroy()
         g := ""
     }
     g := Gui((uiLang = "he" ? "+E0x400000" : ""), "REC — Write Tool")
-    g.OnEvent("Close", (*) => (g.Destroy(), g := ""))
-    g.OnEvent("Escape", (*) => (g.Destroy(), g := ""))
+    ; Test && Save makes a REAL API round-trip, so this window can be closed
+    ; mid-test. Route every teardown through CloseWiz so TestAndSave knows its
+    ; controls are gone instead of resuming into them and throwing a raw error
+    ; dialog — during first-run setup, of all moments.
+    ; A shared box, not a plain local: the flag has to be reachable both from
+    ; this invocation's handlers and from a LATER call that replaces us.
+    closed := {closed: false}
+    wizLive := closed
+    CloseWiz() {
+        closed.closed := true
+        try g.Destroy()
+        g := ""
+    }
+    g.OnEvent("Close", (*) => CloseWiz())
+    g.OnEvent("Escape", (*) => CloseWiz())
 
     hdr := []
     if (page = 1) {
@@ -1212,6 +1306,25 @@ ShowOnboarding(page := 1) {
         ts.Enabled := false, ts.Text := L["key_testing"], err.Text := " "
         code := 1
         try code := RunWait(BrainCmd() " --selftest", scriptDir, "Hide")   ; real round-trip
+        if closed.closed {
+            ; wizard shut mid-test: the controls below are gone, and the key we
+            ; wrote before testing is still unproven — put the old one back
+            if (oldEnv != "") {
+                try {
+                    f := FileOpen(scriptDir "\.env", "w", "UTF-8-RAW")
+                    f.Write(oldEnv)
+                    f.Close()
+                }
+            } else {
+                ; Fresh install — there was no old key to restore, so the
+                ; unproven one must NOT survive. `--has-key` only checks that a
+                ; key loads, so leaving it here would skip onboarding on the
+                ; next start and then fail every single action with no clue why.
+                try FileDelete(scriptDir "\.env")
+            }
+            Log("key test abandoned — wizard closed while testing")
+            return
+        }
         ts.Enabled := true, ts.Text := L["key_test_save"]
         if (code = 0) {
             ShowOnboarding(3)
@@ -1292,6 +1405,16 @@ ShowSettings() {
         try v := hkc.Value
         if (v = "" || !RegExMatch(v, "[^\^!+#]"))   ; ignore modifier-only states
             return
+        ; …and refuse anything without Ctrl/Alt/Win. Hotkey() accepts "a" and
+        ; registers it GLOBALLY with no `~` prefix, so the key is SWALLOWED
+        ; rather than passed through: bind `a` and every `a` you type in any app
+        ; opens the panel instead of typing a letter. It saves to config too, so
+        ; it survives a restart. Shift does NOT count — "+a" is still a key
+        ; people type, and binding it eats every capital A.
+        if !RegExMatch(v, "[\^!#]") {
+            Notify(L["hk_rejected"])
+            return
+        }
         ApplyHotkey(v)
     }
     ApplyHotkey(hk) {

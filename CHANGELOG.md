@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.5.3 — 2026-08-14
+
+Hardening release. Seven bugs found by deliberately trying to break the tool —
+closing windows mid-request, asking for two things at once, clicking the wrong
+thing at the wrong moment. None had been reported, because most need timing
+nobody would reproduce on purpose. All of them either threw a frightening
+technical box or lost something without saying so.
+
+- **Closing a summary window while it is still thinking no longer throws an error box.** Ask a follow-up in a Summary / Key Points / Table window, then close it before the answer lands: about ten seconds later a raw AutoHotkey error appeared, offering six buttons of which three kill or restart the tool. Every way of closing that window now marks it closed, and the reply checks before writing into controls that no longer exist.
+- **Double-clicking Botan while REC is working no longer empties your clipboard.** The tray panel is the same panel as the popup, and it cleared the saved-clipboard slot without checking whether an action was in flight — the finishing action then restored that now-empty value over whatever you had copied. It only tidies up when nothing is running.
+- **Two requests at once no longer destroy each other's answer.** A follow-up chat never raised the "busy" flag, so a hotkey action fired during one went straight through — and both talked to the brain through the same four fixed temp files. Whichever finished first deleted the other's output, so the follow-up returned "successful" with nothing in it and rolled the question back, even though the model had answered fine. Every call now gets its own files. Those files hold the text you selected, so leftovers from a call that was killed mid-flight are swept at startup, once they are old enough to be certainly abandoned.
+- **The first-run key wizard no longer throws an error box if you close it mid-test.** The same failure as the summary window, at the worst possible moment — ten seconds into a new user's first minute. Closing during validation now puts the previous key back, and on a fresh install removes the unproven one rather than leaving a key that looks configured and fails every request.
+- **A follow-up that can't reach the brain now talks like the rest of the tool.** The chat path had no error handling at all, so a brain that wouldn't launch (antivirus quarantine, a half-finished update) showed a raw dialog with the full command line and temp paths. It logs the cause and shows the same friendly notice as every other failure.
+- **Settings won't let you bind a bare letter as the menu hotkey.** It accepted `a`, registered it globally and swallowed the key — every `a` you typed anywhere opened the panel instead of typing a letter, and it saved to config, so restarting didn't help. The picker now requires Ctrl, Alt or Win. Shift alone doesn't count: that eats every capital letter.
+- **A failed follow-up no longer erases the question you typed while waiting.** It put the old question back by force. It now does that only if you left the box empty.
+
 ## v1.5.2 — 2026-08-11
 
 - **The tool can no longer wedge itself.** A single `busy` flag gates every hotkey; it was raised in two places and lowered in four, so any action that died without lowering it left every hotkey silently doing nothing until the app was restarted — indistinguishable, from the outside, from "the tool broke". It had happened for real (2026-07-28). Every write now goes through one `MarkBusy()` that stamps a clock, and a 5-second watchdog releases anything held past 90s, restoring the saved clipboard and saying so. A popup you leave open on screen is left alone — the watchdog only steps in once its window is gone.
