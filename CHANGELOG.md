@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.5.4 — 2026-08-15
+
+- **The `Ctrl+Alt+Space` popup no longer opens half-hidden under the taskbar.** The panel opens at your cursor and is meant to slide back on screen if it would overhang an edge. It measured itself with `Gui.GetPos`, which reports the size the code *asked for* rather than the size Windows *drew* — on a display running at 150% scaling that is 417×269 for a panel the screen actually shows at 626×404. The clamp therefore believed it had 135px more room than it had, and left the panel hanging up to 127px below the work area (144px for the taller tray panel), i.e. underneath the taskbar. It now measures with `WinGetPos`, which speaks the same true screen pixels as the cursor position and the work-area bounds it gets compared against. Only ever affected displays running above 100% scaling — which is most laptops.
+
 ## v1.5.3 — 2026-08-14
 
 Hardening release. Seven bugs found by deliberately trying to break the tool —

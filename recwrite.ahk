@@ -15,7 +15,7 @@
 ; ============================================================================
 
 ; ---- version / repo ---------------------------------------------------------
-APP_VERSION := "1.5.3"
+APP_VERSION := "1.5.4"
 REPO_SLUG   := "odedbahiri-arch/rec-write"
 
 ; ---- paths / settings -------------------------------------------------------
@@ -568,11 +568,20 @@ ShowPopup(trayMode := false) {
     p.OnEvent("Escape", (*) => ClosePopup())
     p.OnEvent("Close", (*) => ClosePopup())
 
-    ; show at the cursor, clamped to the work area of the monitor it's on
+    ; Show at the cursor, clamped to the work area of the monitor it's on.
+    ; MouseGetPos, MonitorGetWorkArea and Show's x/y all speak TRUE screen
+    ; pixels. Gui.GetPos does NOT — it reports the panel back in unscaled gui
+    ; units, so on a 150%-scaled display it answered 417x269 for a window the
+    ; screen shows at 626x404. The clamp then under-measured the panel by the
+    ; whole scale factor and happily left it hanging up to 127px below the work
+    ; area (144px for the taller tray panel) — i.e. under the taskbar.
+    ; WinGetPos on the hwnd returns what is actually on screen (verified: it
+    ; works on a still-hidden Gui, DetectHiddenWindows off, and agrees with
+    ; GetWindowRect). Measure in the same units you clamp in.
     CoordMode("Mouse", "Screen")
     MouseGetPos(&mx, &my)
     p.Show(Format("w{} h{} Hide", W, H))
-    p.GetPos(, , &pw, &ph)
+    WinGetPos(, , &pw, &ph, p.Hwnd)
     WorkAreaAt(mx, my, &wl, &wt, &wr, &wb)
     x := Max(wl + 8, Min(mx, wr - pw - 8)), y := Max(wt + 8, Min(my, wb - ph - 8))
     p.Show("x" x " y" y)
