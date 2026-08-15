@@ -11,3 +11,10 @@ build/
 *.spec
 REC-WriteTool.exe
 recwrite-brain.exe
+
+# Local working docs. This repo is public; these are not.
+# CLAUDE.md holds personal context, PROJECT-LOG.md is session history, and
+# qa/ documents bugs that are still open in a shipped product.
+CLAUDE.md
+PROJECT-LOG.md
+qa/
