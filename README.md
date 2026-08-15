@@ -102,6 +102,9 @@ Exit codes are the contract between them: `0` ok · `1` error · `2` text
 unsuitable · `3` blocked by safety filter · `4` rate limited · `5` result
 truncated but usable.
 
+Releases are built and published entirely by GitHub Actions from a pushed tag —
+see [docs/RELEASING.md](docs/RELEASING.md).
+
 ## Known limitations
 
 - Runs without elevation, so hotkeys/paste can't reach windows running **as
