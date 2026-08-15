@@ -159,9 +159,13 @@ Then, in order of how much they'd hurt if wrong:
   should download the new zip, not the previous one. This is the link real
   people use.
 - **The download page still works** — <https://lab.recstudio.dev/x/rec-write>.
-  It lives in the `rec-lab` project (island at `public/x/rec-write/`) and points
-  at the versioned asset, so **it needs its own update when the version
-  changes.** Easy to forget; it is a separate repo.
+  It lives in a *different* repo (the `rec-lab` project, island at
+  `public/x/rec-write/`), which is normally where a release step gets forgotten
+  — but this page hardcodes no version at all: its button points at the
+  permanent `releases/latest/download/REC-WriteTool.zip` link, so it serves the
+  new version the moment the release publishes. **No action needed** (verified
+  2026-08-15). This is exactly what the stable-named asset buys you, and the
+  reason never to break that filename.
 - **The in-app check agrees** — tray → *Check for updates* on an install of the
   *previous* version should now offer the new one.
 - **Unzip and run it once.** The build machine proves the exes exist. Only you
